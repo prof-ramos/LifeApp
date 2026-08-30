@@ -1,0 +1,34 @@
+# Secrets and local artifacts
+.env*
+*.key
+*.pem
+*.p12
+*.pem
+*.seed
+credentials/
+secrets/
+*.log
+npm-debug.log*
+.pnpm-store/
+node_modules/
+*.tsbuildinfo
+
+# Coverage
+coverage/
+.nyc_output/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Expo / mobile build artifacts
+.expo/
+dist/
+web-build/

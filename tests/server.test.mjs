@@ -36,6 +36,14 @@ test('checkout quote rejeita tipos inválidos sem coerção silenciosa', async (
   });
 });
 
+test('POST em health check e GET em quote retornam 405', async () => {
+  const health = await fetch(`${baseUrl}/api/health`, {method: 'POST'});
+  assert.equal(health.status, 405);
+
+  const quote = await fetch(`${baseUrl}/api/checkout/quote`);
+  assert.equal(quote.status, 405);
+});
+
 test('checkout quote calcula uma cotação válida', async () => {
   const response = await fetch(`${baseUrl}/api/checkout/quote`, {
     method: 'POST',
@@ -47,6 +55,59 @@ test('checkout quote calcula uma cotação válida', async () => {
   assert.equal(payload.provider, 'mock');
   assert.equal(payload.currency, 'BRL');
   assert.equal(payload.allocation.condominiumShare, 0.85);
+});
+
+test('quote rejeita JSON inválido, taxas inválidas e dinheiro negativo', async () => {
+  const cases = [
+    {body: '{not-json', code: 'INVALID_JSON'},
+    {body: JSON.stringify({gross: 100, cashbackRate: -0.01}), code: 'INVALID_RATE'},
+    {body: JSON.stringify({gross: -1}), code: 'INVALID_MONEY'},
+  ];
+
+  for (const {body, code} of cases) {
+    const response = await fetch(`${baseUrl}/api/checkout/quote`, {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body,
+    });
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).error.code, code);
+  }
+});
+
+test('quote rejeita payload maior que 64 KB', async () => {
+  const response = await fetch(`${baseUrl}/api/checkout/quote`, {
+    method: 'POST',
+    headers: {'content-type': 'application/json'},
+    body: JSON.stringify({gross: 1, padding: 'x'.repeat(64_000)}),
+  });
+  assert.equal(response.status, 413);
+});
+
+test('processa requisições válidas concorrentes sem corromper a resposta', async () => {
+  const responses = await Promise.all(Array.from({length: 20}, () => fetch(`${baseUrl}/api/checkout/quote`, {
+    method: 'POST',
+    headers: {'content-type': 'application/json'},
+    body: JSON.stringify({gross: 79.9, cashbackRate: 0.1}),
+  })));
+
+  assert.ok(responses.every(response => response.status === 200));
+  const payloads = await Promise.all(responses.map(response => response.json()));
+  assert.ok(payloads.every(payload => payload.allocation.condominiumShare === 0.2));
+});
+
+test('rota API desconhecida retorna 404 em JSON', async () => {
+  const response = await fetch(`${baseUrl}/api/unknown`);
+  assert.equal(response.status, 404);
+  assert.deepEqual(await response.json(), {
+    error: {code: 'NOT_FOUND', message: 'Não encontrado.'},
+  });
+});
+
+test('URL percent-encoded com traversal não escapa do diretório público', async () => {
+  const response = await fetch(`${baseUrl}/%2e%2e%2fpackage.json`);
+  assert.equal(response.status, 200);
+  assert.match(await response.text(), /Life Super App/);
 });
 
 test('rota estática inexistente serve index.html como fallback (SPA)', async () => {

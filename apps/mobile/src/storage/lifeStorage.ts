@@ -1,19 +1,14 @@
 import Storage from 'expo-sqlite/kv-store';
+import {DEFAULT_STATE, parseLocalLifeState} from './lifeState';
+import type {LocalLifeState} from './lifeState';
 
 const KEYS = {
   cashback: 'life.cashback',
   orders: 'life.orders',
 } as const;
 
-export type LocalLifeState = {
-  cashback: number;
-  orders: number;
-};
-
-const DEFAULT_STATE: LocalLifeState = {
-  cashback: 27.8,
-  orders: 0,
-};
+export type {LocalLifeState};
+export {DEFAULT_STATE};
 
 export async function loadLocalLifeState(): Promise<LocalLifeState> {
   const [cashbackRaw, ordersRaw] = await Promise.all([
@@ -21,13 +16,7 @@ export async function loadLocalLifeState(): Promise<LocalLifeState> {
     Storage.getItem(KEYS.orders),
   ]);
 
-  const cashback = cashbackRaw === null ? DEFAULT_STATE.cashback : Number(cashbackRaw);
-  const orders = ordersRaw === null ? DEFAULT_STATE.orders : Number(ordersRaw);
-
-  return {
-    cashback: Number.isFinite(cashback) ? cashback : DEFAULT_STATE.cashback,
-    orders: Number.isFinite(orders) ? orders : DEFAULT_STATE.orders,
-  };
+  return parseLocalLifeState(cashbackRaw, ordersRaw);
 }
 
 export async function saveLocalLifeState(state: LocalLifeState): Promise<void> {
