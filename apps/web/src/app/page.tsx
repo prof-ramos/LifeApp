@@ -1,3 +1,4 @@
+import type { LucideIcon } from 'lucide-react';
 import { Bell, Building2, CalendarDays, ChevronRight, Home, Package, Scissors, Search, ShieldCheck, ShoppingBag, Sparkles, Store, Users, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
@@ -5,10 +6,25 @@ import { MerchantCard } from '@/components/life/merchant-card';
 import { WalletCard } from '@/components/life/wallet-card';
 
 const merchants = [
-  { name: 'Casa Verde Market', category: 'Mercado', rating: 4.9, cashback: 8, item: 'Cesta Fresh', price: 64.9, icon: <Store className="size-6" /> },
-  { name: 'Studio Nômade', category: 'Beleza', rating: 4.8, cashback: 12, item: 'Corte Premium', price: 55, icon: <Scissors className="size-6" /> },
-  { name: 'Resolve Casa', category: 'Serviços', rating: 4.9, cashback: 10, item: 'Visita técnica', price: 79.9, icon: <Wrench className="size-6" /> },
-];
+  { name: 'Casa Verde Market', category: 'Mercado', rating: 4.9, cashback: 8, item: 'Cesta Fresh', price: 64.9, icon: Store },
+  { name: 'Studio Nômade', category: 'Beleza', rating: 4.8, cashback: 12, item: 'Corte Premium', price: 55, icon: Scissors },
+  { name: 'Resolve Casa', category: 'Serviços', rating: 4.9, cashback: 10, item: 'Visita técnica', price: 79.9, icon: Wrench },
+] satisfies Array<{ name:string; category:string; rating:number; cashback:number; item:string; price:number; icon:LucideIcon }>;
+
+const quickActions = [
+  { title:'Encomenda', sub:'1 aguardando', icon:Package },
+  { title:'Visitante', sub:'Gerar acesso', icon:ShieldCheck },
+  { title:'Reservar', sub:'Áreas comuns', icon:CalendarDays },
+  { title:'Comunidade', sub:'Ver novidades', icon:Users },
+] satisfies Array<{ title:string; sub:string; icon:LucideIcon }>;
+
+const navItems = [
+  { label:'Início', icon:Home },
+  { label:'Comunidade', icon:Users },
+  { label:'Comprar', icon:ShoppingBag },
+  { label:'Condomínio', icon:Building2 },
+  { label:'Perfil', icon:Package },
+] satisfies Array<{ label:string; icon:LucideIcon }>;
 
 export default function HomePage() {
   return (
@@ -27,19 +43,17 @@ export default function HomePage() {
       </section>
 
       <section className="mb-9">
-        <div className="mb-4 flex items-end justify-between"><div><p className="text-xs font-black uppercase tracking-[.16em] text-primary">Seu condomínio</p><h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">O que você precisa, sem burocracia.</h1></div></div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {[['Encomenda','1 aguardando',Package],['Visitante','Gerar acesso',ShieldCheck],['Reservar','Áreas comuns',CalendarDays],['Comunidade','Ver novidades',Users]].map(([title,sub,Icon])=><Card key={String(title)} className="p-4"><Icon className="mb-5 size-5 text-primary" /><p className="font-black">{String(title)}</p><p className="mt-1 text-xs text-muted-foreground">{String(sub)}</p></Card>)}
-        </div>
+        <p className="text-xs font-black uppercase tracking-[.16em] text-primary">Seu condomínio</p><h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">O que você precisa, sem burocracia.</h1>
+        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">{quickActions.map(({title,sub,icon:Icon})=><Card key={title} className="p-4"><Icon className="mb-5 size-5 text-primary" /><p className="font-black">{title}</p><p className="mt-1 text-xs text-muted-foreground">{sub}</p></Card>)}</div>
       </section>
 
       <section>
         <div className="mb-4 flex items-end justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[.16em] text-primary">Perto de você</p><h2 className="mt-2 text-2xl font-black tracking-[-0.03em]">Comprar no Life</h2></div><Button variant="ghost">Ver tudo <ChevronRight className="size-4" /></Button></div>
-        <div className="grid gap-3 md:grid-cols-3">{merchants.map(({icon,...merchant})=><MerchantCard key={merchant.name} {...merchant} icon={icon} />)}</div>
+        <div className="grid gap-3 md:grid-cols-3">{merchants.map(({icon:Icon,...merchant})=><MerchantCard key={merchant.name} {...merchant} icon={<Icon className="size-6" />} />)}</div>
       </section>
 
       <nav className="fixed bottom-3 left-1/2 z-20 flex w-[calc(100%-24px)] max-w-xl -translate-x-1/2 items-center justify-around rounded-xl border border-border bg-card/95 p-2 shadow-life backdrop-blur md:static md:mx-auto md:mt-10 md:w-auto md:translate-x-0">
-        {[[Home,'Início'],[Users,'Comunidade'],[ShoppingBag,'Comprar'],[Building2,'Condomínio'],[Package,'Perfil']].map(([Icon,label],index)=><button key={String(label)} className={`flex min-h-12 min-w-14 flex-col items-center justify-center gap-1 rounded-md px-3 text-[10px] font-bold ${index===0?'bg-primary/10 text-primary':'text-muted-foreground hover:bg-muted hover:text-foreground'}`}><Icon className="size-4" />{String(label)}</button>)}
+        {navItems.map(({icon:Icon,label},index)=><button key={label} className={`flex min-h-12 min-w-14 flex-col items-center justify-center gap-1 rounded-md px-3 text-[10px] font-bold ${index===0?'bg-primary/10 text-primary':'text-muted-foreground hover:bg-muted hover:text-foreground'}`}><Icon className="size-4" />{label}</button>)}
       </nav>
     </main>
   );
