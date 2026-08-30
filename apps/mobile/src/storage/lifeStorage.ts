@@ -18,6 +18,11 @@ const DEFAULT_STATE: LocalLifeState = {
   legalAcceptedVersion: null,
 };
 
+/**
+ * Loads the locally stored life state, applying defaults for missing or invalid numeric values.
+ *
+ * @returns The stored cashback, order count, and accepted legal version
+ */
 export async function loadLocalLifeState(): Promise<LocalLifeState> {
   const [cashbackRaw, ordersRaw, legalAcceptedVersion] = await Promise.all([
     Storage.getItem(KEYS.cashback),
@@ -35,6 +40,11 @@ export async function loadLocalLifeState(): Promise<LocalLifeState> {
   };
 }
 
+/**
+ * Persists the local life state.
+ *
+ * @param state - The cashback, order count, and accepted legal-version data to store
+ */
 export async function saveLocalLifeState(state: LocalLifeState): Promise<void> {
   await Promise.all([
     Storage.setItem(KEYS.cashback, String(state.cashback)),

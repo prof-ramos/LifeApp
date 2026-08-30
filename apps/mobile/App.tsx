@@ -13,6 +13,9 @@ const merchants:Merchant[]=[
 const brl=(n:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n);
 const money=(n:number)=>Math.round((n+Number.EPSILON)*100)/100;
 
+/**
+ * Renders the Life app, including hydration, legal consent, tab navigation, wallet management, and purchases.
+ */
 export default function App(){
   const [tab,setTab]=useState<Tab>('home');
   const [cashback,setCashback]=useState(27.8);
@@ -85,8 +88,33 @@ export default function App(){
   return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.container}><View style={s.top}><Text style={s.logo}>LIFE</Text><View style={s.avatar}><Text style={s.avatarText}>GR</Text></View></View>{message?<TouchableOpacity onPress={()=>setMessage('')} style={s.toast}><Text style={s.toastText}>{message}</Text></TouchableOpacity>:null}{content}</ScrollView><View style={s.nav}>{([['home','⌂','Início'],['market','⌕','Comprar'],['social','◎','Social'],['insights','▥','Insights'],['profile','☺','Perfil']] as const).map(([k,icon,label])=><TouchableOpacity key={k} onPress={()=>{setTab(k);if(k!=='market')setUseCashback(false)}} style={[s.navItem,tab===k&&s.navActive]}><Text style={s.navIcon}>{icon}</Text><Text style={s.navLabel}>{label}</Text></TouchableOpacity>)}</View></SafeAreaView>;
 }
 
+/**
+ * Renders a section heading with a title and subtitle.
+ *
+ * @param title - The heading title
+ * @param sub - The heading subtitle
+ */
 function Heading({title,sub}:{title:string;sub:string}){return <View style={s.heading}><Text style={s.headingText}>{title}</Text><Text style={s.muted}>{sub}</Text></View>}
+/**
+ * Renders content inside a styled card container.
+ *
+ * @param children - The content displayed inside the card
+ * @param accent - Whether to apply accent styling
+ */
 function Card({children,accent=false}:{children:React.ReactNode;accent?:boolean}){return <View style={[s.card,accent&&s.accent]}>{children}</View>}
+/**
+ * Renders a compact metric tile with a label and value.
+ *
+ * @param label - The metric label
+ * @param value - The metric value
+ */
 function Mini({label,value}:{label:string;value:string}){return <View style={s.mini}><Text style={s.muted}>{label}</Text><Text style={s.miniValue}>{value}</Text></View>}
+/**
+ * Renders a button that can be disabled to prevent interaction.
+ *
+ * @param label - The text displayed on the button
+ * @param onPress - The callback invoked when the button is pressed
+ * @param disabled - Whether the button is unavailable for interaction
+ */
 function Button({label,onPress,disabled=false}:{label:string;onPress:()=>void;disabled?:boolean}){return <TouchableOpacity disabled={disabled} style={[s.button,disabled&&s.buttonDisabled]} onPress={onPress}><Text style={s.buttonText}>{label}</Text></TouchableOpacity>}
 const s=StyleSheet.create({safe:{flex:1,backgroundColor:'#07111f'},container:{padding:18,paddingBottom:110},legal:{padding:24,justifyContent:'center',flexGrow:1},center:{flex:1,alignItems:'center',justifyContent:'center',gap:12},top:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:18},logo:{fontSize:22,fontWeight:'900',color:'#f6f8fb',letterSpacing:1},avatar:{width:42,height:42,borderRadius:21,backgroundColor:'#17304a',alignItems:'center',justifyContent:'center'},avatarText:{color:'#f6f8fb',fontWeight:'800'},card:{backgroundColor:'#0d1a2b',borderWidth:1,borderColor:'rgba(255,255,255,0.09)',borderRadius:24,padding:20,marginBottom:14},accent:{backgroundColor:'#10283a'},eyebrow:{color:'#79f2c0',fontSize:11,fontWeight:'900',letterSpacing:1.3},hero:{color:'#f6f8fb',fontSize:34,lineHeight:38,fontWeight:'900',letterSpacing:-1.5,marginTop:10,marginBottom:18},heading:{marginTop:8,marginBottom:12},headingText:{color:'#f6f8fb',fontSize:24,fontWeight:'900',letterSpacing:-.7},muted:{color:'#93a4b8',fontSize:13,lineHeight:19},cardTitle:{color:'#f6f8fb',fontSize:19,fontWeight:'800',marginBottom:6},body:{color:'#dce5ef',fontSize:15,lineHeight:22,marginBottom:12},button:{backgroundColor:'#79f2c0',paddingVertical:13,paddingHorizontal:16,borderRadius:16,alignItems:'center',marginTop:14},buttonDisabled:{opacity:.5},buttonText:{color:'#06111f',fontWeight:'900'},quick:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between'},metrics:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between'},mini:{width:'48%',backgroundColor:'#0d1a2b',borderWidth:1,borderColor:'rgba(255,255,255,0.08)',borderRadius:18,padding:15,marginBottom:12},miniValue:{color:'#f6f8fb',fontWeight:'900',fontSize:18,marginTop:7},emoji:{fontSize:42,marginBottom:10},row:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginVertical:10},price:{color:'#f6f8fb',fontWeight:'900',fontSize:18},cash:{color:'#79f2c0',fontWeight:'800',fontSize:13},big:{color:'#f6f8fb',fontSize:40,fontWeight:'900',marginVertical:8},nav:{position:'absolute',left:12,right:12,bottom:10,backgroundColor:'#0a1726',borderRadius:24,borderWidth:1,borderColor:'rgba(255,255,255,0.09)',padding:7,flexDirection:'row',justifyContent:'space-around'},navItem:{flex:1,alignItems:'center',padding:8,borderRadius:16},navActive:{backgroundColor:'rgba(121,242,192,0.10)'},navIcon:{color:'#f6f8fb',fontSize:18},navLabel:{color:'#93a4b8',fontSize:10,marginTop:2},toast:{backgroundColor:'#e9fff6',borderRadius:16,padding:13,marginBottom:14},toastText:{color:'#07111f',fontWeight:'800'}});

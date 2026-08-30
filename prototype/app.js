@@ -13,6 +13,10 @@ const useCashback=()=>{state.cashbackMode=true;state.route='market';save();rende
 const toggleCashback=()=>{state.cashbackMode=!state.cashbackMode;save();render()};
 const acceptLegal=()=>{state.legalAcceptedVersion=LEGAL_VERSION;save();render()};
 const switchRole=()=>{state.role=state.role==='resident'?'merchant':state.role==='merchant'?'manager':'resident';state.route='home';state.cashbackMode=false;save();render()};
+/**
+ * Completes a marketplace purchase for the specified merchant.
+ * @param {string} id - The merchant identifier.
+ */
 async function buy(id){
   if(state.purchasing)return;
   const m=merchants.find(x=>x.id===id);
@@ -34,14 +38,49 @@ async function buy(id){
 }
 const nav=()=>`<nav>${[['home','Início'],['market','Comprar'],['social','Social'],['insights','Insights'],['profile','Perfil']].map(([k,l])=>`<button class="${state.route===k?'active':''}" onclick="go('${k}')">${l}</button>`).join('')}</nav>`;
 const card=(title,body,action='')=>`<section class="card"><h3>${title}</h3><p>${body}</p>${action}</section>`;
+/**
+ * Presents the legal acceptance screen required before accessing the application.
+ * @return {string} HTML markup for the legal acceptance screen.
+ */
 function legalGate(){return `<main><div class="hero"><small>PRIVACIDADE E CONFIANÇA</small><h1>Antes de começar no Life</h1><p>Leia e aceite os Termos de Uso e reconheça a Política de Privacidade da versão ${LEGAL_VERSION}. Este MVP registra o aceite localmente; em produção a evidência será registrada no backend.</p><p><a href="https://www.gov.br/anpd/pt-br" target="_blank" rel="noopener noreferrer">Referência LGPD / ANPD ↗</a></p><button onclick="acceptLegal()">Li e aceito · continuar</button></div></main>`}
+/**
+ * Generates the resident home view with cashback information and quick-access cards.
+ * @return {string} The rendered HTML for the resident home view.
+ */
 function residentHome(){return `<div class="hero"><small>SEU DIA NO LIFE</small><h1>Boa noite.<br>Você tem ${brl(state.cashback)} para usar.</h1><button onclick="useCashback()">Usar cashback</button></div><div class="grid">${card('📦 Encomenda','1 aguardando retirada')}${card('🔑 Visitante','Gerar acesso temporário')}${card('🛍️ Marketplace','Produtos e serviços próximos','<button onclick="go(\'market\')">Comprar</button>')}${card('↗ Insights','Entenda seus gastos e descontos','<button onclick="go(\'insights\')">Ver dados</button>')}</div>`}
+/**
+ * Renders the merchant dashboard with order, rating, cashback, revenue, and store management information.
+ * @return {string} The merchant dashboard markup.
+ */
 function merchantHome(){return `<h1>Painel do empreendedor</h1><div class="stats">${card('Pedidos',String(state.orders))}${card('Avaliação','4,9 ★')}${card('Cashback','Campanhas ativas')}${card('Receita','Visão demonstrativa')}</div>${card('Loja','Gerencie produtos, serviços, agenda e reputação pelo Life.')}`}
+/**
+ * Render the condominium manager dashboard.
+ * @return {string} The dashboard markup with participation, revenue rule, resident, transaction, and transparency information.
+ */
 function managerHome(){return `<h1>Gestão do condomínio</h1><div class="stats">${card('Participação acumulada',brl(state.condoRevenue))}${card('Regra','10% da receita Life elegível')}${card('Moradores ativos','128')}${card('Transações',String(state.orders))}</div>${card('Transparência','GMV, receita Life e participação do condomínio devem permanecer separados.')}`}
+/**
+ * Renders the marketplace view with merchant offers, prices, cashback options, and purchase controls.
+ * @return {string} The marketplace HTML markup.
+ */
 function market(){return `<h1>Marketplace</h1><p>Pagamento exclusivamente dentro do Life.</p>${state.role==='resident'?card('Life Wallet',`${brl(state.cashback)} disponíveis. No MVP, até 50% do valor da compra pode ser coberto com cashback.`,`<button onclick="toggleCashback()">${state.cashbackMode?'Não usar cashback':'Aplicar cashback'}</button>`):''}<div class="grid">${merchants.map(m=>{const used=state.cashbackMode?Math.min(state.cashback,m.price*0.5):0;return `<section class="card"><span class="badge">${m.cashback}% cashback</span><h3>${m.name}</h3><p>${m.category} · ★ ${m.rating}</p><strong>${m.item} · ${brl(m.price)}</strong>${used?`<p>Cashback aplicado: ${brl(used)} · pagar ${brl(m.price-used)}</p>`:''}<button ${state.purchasing?'disabled':''} onclick="buy(${m.id})">${state.purchasing?'Processando…':'Comprar no Life'}</button></section>`}).join('')}</div>`}
+/**
+ * Render the community page with verified local experiences and ratings.
+ * @returns {string} HTML markup containing the community heading and post cards.
+ */
 function social(){return `<h1>Comunidade</h1><p>Experiências locais e avaliações verificadas.</p>${state.posts.map(p=>card(`${p.author} · ${'★'.repeat(p.rating)}`,p.text+' · Compra verificada')).join('')}`}
+/**
+ * Render the spending insights view with activity metrics and a cashback recommendation.
+ * @return {string} The generated HTML markup.
+ */
 function insights(){return `<h1>Insights</h1><div class="stats">${card('Gastos','R$ 1.040,00')}${card('Cashback',brl(state.cashback))}${card('Pedidos',String(9+state.orders))}${card('Economia','R$ 86,40')}</div>${card('Melhor uso do cashback','Você costuma contratar serviços residenciais. A Resolve Casa tem 10% de cashback e boa reputação perto de você.','<button onclick="useCashback()">Usar desconto</button>')}`}
+/**
+ * Renders the user's profile view with wallet information, privacy details, legal acceptance status, and an ANPD link.
+ * @return {string} The profile view markup.
+ */
 function profile(){return `<h1>Gabriel</h1>${card('Life Wallet',`${brl(state.cashback)} em crédito promocional para uso dentro do Life.`)}${card('Privacidade','Dados condominiais permanecem privados. Preferências sociais e comerciais devem ser controláveis.')}${card('Documentos legais',`Versão aceita: ${state.legalAcceptedVersion||'não aceita'}`)}${card('Explorar','Links externos relacionados a consumo, LGPD e vida condominial.','<a href="https://www.gov.br/anpd/" target="_blank" rel="noopener noreferrer">Abrir ANPD ↗</a>')}`}
+/**
+ * Renders the current application view and enforces legal acceptance before access.
+ */
 function render(){
   if(state.legalAcceptedVersion!==LEGAL_VERSION){document.querySelector('#app').innerHTML=legalGate();return;}
   const body=state.route==='market'?market():state.route==='social'?social():state.route==='insights'?insights():state.route==='profile'?profile():state.role==='resident'?residentHome():state.role==='merchant'?merchantHome():managerHome();
