@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Life",
+    "slug": "life-super-app",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": {"supportsTablet": true,"bundleIdentifier":"br.com.life.superapp"},
+    "android": {"package":"br.com.life.superapp"},
+    "web": {"bundler":"metro"}
+  }
+}
