@@ -12,10 +12,10 @@ const toCents = value => {
 const fromCents = value => value / CENTS_PER_REAL;
 const allocate = (baseCents, rate) => Math.floor(baseCents * rate + 0.5);
 
-export function calculateAllocation({gross, platformFeeRate=0.15, pspFeeRate=0.025, cashbackRate=0, condoShareRate=0.10}) {
+export function calculateAllocation({gross, platformFeeRate=0.15, pspFeeRate=0.025, cashbackRate=0, condoShareRate=0.10, cashbackUsed=0, cashbackBalance, availableCashback}) {
   // Taxa de plataforma: 15% da receita bruta
   // Taxa PSP: 2,5% da receita bruta
-  // Cashback: parte da receita bruta (rate)
+  // Cashback novo: percentual do valor efetivamente pago pelo cliente
   // Receita Life elegível: plataforma - PSP - cashback (floor em 0)
   // Share condomínio: 10% da receita Life elegível
   const grossCents = toCents(gross);
@@ -23,9 +23,25 @@ export function calculateAllocation({gross, platformFeeRate=0.15, pspFeeRate=0.0
     if (!Number.isFinite(rate) || rate < 0 || rate > 1) throw new Error('INVALID_RATE');
   }
 
+  if (!Number.isFinite(cashbackUsed) || cashbackUsed < 0) throw new Error('INVALID_CASHBACK_USED');
+  const cashbackUsedCents = toCents(cashbackUsed);
+  const cashbackLimitCents = Math.floor(grossCents / 2);
+  if (cashbackUsedCents > cashbackLimitCents) throw new Error('CASHBACK_LIMIT_EXCEEDED');
+
+  const knownCashbackBalance = cashbackBalance === undefined ? availableCashback : cashbackBalance;
+  if (knownCashbackBalance !== undefined) {
+    if (!Number.isFinite(knownCashbackBalance) || knownCashbackBalance < 0) {
+      throw new Error('INVALID_CASHBACK_BALANCE');
+    }
+    if (cashbackUsedCents > toCents(knownCashbackBalance)) {
+      throw new Error('INSUFFICIENT_CASHBACK_BALANCE');
+    }
+  }
+
   const platformFeeCents = allocate(grossCents, platformFeeRate);
   const pspFeeCents = allocate(grossCents, pspFeeRate);
-  const cashbackEarnedCents = allocate(grossCents, cashbackRate);
+  const customerPayableCents = grossCents - cashbackUsedCents;
+  const cashbackEarnedCents = allocate(customerPayableCents, cashbackRate);
   const merchantReceivableCents = grossCents - platformFeeCents;
   const eligibleLifeRevenueCents = Math.max(0, platformFeeCents - pspFeeCents - cashbackEarnedCents);
   const condominiumShareCents = allocate(eligibleLifeRevenueCents, condoShareRate);
@@ -33,6 +49,8 @@ export function calculateAllocation({gross, platformFeeRate=0.15, pspFeeRate=0.0
 
   return {
     gross: fromCents(grossCents),
+    cashbackUsed: fromCents(cashbackUsedCents),
+    customerPayable: fromCents(customerPayableCents),
     platformFee: fromCents(platformFeeCents),
     pspFee: fromCents(pspFeeCents),
     cashbackEarned: fromCents(cashbackEarnedCents),

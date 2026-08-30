@@ -10,7 +10,7 @@ function createHarness() {
   const cache = {
     addAll: async assets => { cache.assets = assets; },
   };
-  const cacheStore = new Map([['life-mvp-v1', {}], ['life-mvp-v2', cache]]);
+  const cacheStore = new Map([['life-mvp-v1', {}], ['life-mvp-v2', {}], ['life-mvp-v3', cache]]);
   const context = {
     caches: {
       open: async key => cacheStore.get(key) ?? cacheStore.set(key, {addAll: async () => {}}).get(key),
@@ -38,7 +38,10 @@ async function runLifecycleEvent(handler) {
 test('instala os assets e ativa imediatamente', async () => {
   const app = createHarness();
   await runLifecycleEvent(app.listeners.get('install'));
-  assert.equal(JSON.stringify(app.cacheStore.get('life-mvp-v2').assets), JSON.stringify(['/', '/index.html', '/styles.css', '/app.js', '/manifest.webmanifest']));
+  assert.equal(JSON.stringify(app.cacheStore.get('life-mvp-v3').assets), JSON.stringify([
+    '/', '/index.html', '/styles.css', '/app.js', '/manifest.webmanifest',
+    '/legal/terms-2026-08-30.html', '/legal/privacy-2026-08-30.html',
+  ]));
   assert.equal(app.context.skipped, true);
 });
 
@@ -46,6 +49,8 @@ test('remove caches antigos e assume controle dos clientes na ativação', async
   const app = createHarness();
   await runLifecycleEvent(app.listeners.get('activate'));
   assert.equal(app.cacheStore.has('life-mvp-v1'), false);
+  assert.equal(app.cacheStore.has('life-mvp-v2'), false);
+  assert.equal(app.cacheStore.has('life-mvp-v3'), true);
   assert.equal(app.context.claimed, true);
 });
 

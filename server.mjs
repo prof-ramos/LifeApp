@@ -81,12 +81,12 @@ export function createApp() {
       if (pathname === '/api/checkout/quote') {
         if (req.method !== 'POST') return json(res, 405, {error: {code: 'METHOD_NOT_ALLOWED', message: 'Método não permitido.'}});
         const input = await readJsonBody(req);
-        const { gross, cashbackRate = 0 } = input;
+        const { gross, cashbackRate = 0, cashbackUsed = 0 } = input;
 
         if (!Number.isFinite(gross) || gross < 0) throw new Error('INVALID_MONEY');
         if (!Number.isFinite(cashbackRate) || cashbackRate < 0 || cashbackRate > 1) throw new Error('INVALID_RATE');
 
-        const allocation = calculateAllocation({ gross, cashbackRate });
+        const allocation = calculateAllocation({ gross, cashbackRate, cashbackUsed });
         return json(res, 200, {allocation, provider: 'mock', currency: 'BRL'});
       }
 
