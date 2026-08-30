@@ -5,11 +5,31 @@ const merchants=[
 {id:3,name:'Resolve Casa',category:'Serviços',rating:4.9,cashback:10,item:'Visita técnica',price:79.9}
 ];
 const initial={route:'home',role:'resident',cashback:27.8,orders:0,condoRevenue:0,posts:[{author:'Marina S.',text:'Resolve Casa foi pontual e resolveu o problema rapidamente.',rating:5}]};
-let state={...initial,...JSON.parse(localStorage.getItem('life-state')||'{}')};
+let state={...initial,...loadState()};
+const loadState=()=>{
+  try{return JSON.parse(localStorage.getItem('life-state')||'{}')||{}}
+  catch{return {}}
+};
 const save=()=>localStorage.setItem('life-state',JSON.stringify(state));
 const go=route=>{state.route=route;save();render()};
 const switchRole=()=>{state.role=state.role==='resident'?'merchant':state.role==='merchant'?'manager':'resident';state.route='home';save();render()};
-async function buy(id){const m=merchants.find(x=>x.id===id);const res=await fetch('/api/checkout/quote',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({gross:m.price,cashbackRate:m.cashback/100})});const {allocation}=await res.json();state.cashback=+(state.cashback+allocation.cashbackEarned).toFixed(2);state.orders+=1;state.condoRevenue=+(state.condoRevenue+allocation.condominiumShare).toFixed(2);save();alert(`Pagamento MVP aprovado. Cashback: ${brl(allocation.cashbackEarned)} · Condomínio: ${brl(allocation.condominiumShare)}`);render()}
+async function buy(id){
+  const m=merchants.find(x=>x.id===id);
+  if(!m)return;
+  try{
+    const res=await fetch('/api/checkout/quote',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({gross:m.price,cashbackRate:m.cashback/100})});
+    if(!res.ok)throw new Error('QUOTE_FAILED');
+    const {allocation}=await res.json();
+    state.cashback=+(state.cashback+allocation.cashbackEarned).toFixed(2);
+    state.orders+=1;
+    state.condoRevenue=+(state.condoRevenue+allocation.condominiumShare).toFixed(2);
+    save();
+    alert(`Pagamento MVP aprovado. Cashback: ${brl(allocation.cashbackEarned)} · Condomínio: ${brl(allocation.condominiumShare)}`);
+    render();
+  }catch{
+    alert('Não foi possível obter a cotação. Nenhuma alteração foi aplicada.');
+  }
+}
 const nav=()=>`<nav>${[['home','Início'],['market','Comprar'],['social','Social'],['insights','Insights'],['profile','Perfil']].map(([k,l])=>`<button class="${state.route===k?'active':''}" onclick="go('${k}')">${l}</button>`).join('')}</nav>`;
 const card=(title,body,action='')=>`<section class="card"><h3>${title}</h3><p>${body}</p>${action}</section>`;
 function residentHome(){return `<div class="hero"><small>SEU DIA NO LIFE</small><h1>Boa noite.<br>Você tem ${brl(state.cashback)} para usar.</h1><button onclick="go('market')">Usar cashback</button></div><div class="grid">${card('📦 Encomenda','1 aguardando retirada')}${card('🔑 Visitante','Gerar acesso temporário')}${card('🛍️ Marketplace','Produtos e serviços próximos','<button onclick="go(\'market\')">Comprar</button>')}${card('↗ Insights','Entenda seus gastos e descontos','<button onclick="go(\'insights\')">Ver dados</button>')}</div>`}

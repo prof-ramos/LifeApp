@@ -22,3 +22,28 @@ test('nunca cria revenue share quando não há receita Life elegível',()=>{
   assert.equal(r.condominiumShare,0);
   assert.equal(r.lifeNetRevenue,0);
 });
+
+test('arredonda o valor bruto para centavos antes de alocar',()=>{
+  const r=calculateAllocation({gross:10.005, cashbackRate:0.1});
+  assert.equal(r.gross,10.01);
+  assert.equal(r.platformFee,1.5);
+  assert.equal(r.cashbackEarned,1);
+});
+
+test('aceita zero e rejeita dinheiro inválido ou fora do intervalo seguro',()=>{
+  assert.equal(calculateAllocation({gross:0}).gross,0);
+  assert.throws(() => calculateAllocation({gross:-0.01}), {message:'INVALID_MONEY'});
+  assert.throws(() => calculateAllocation({gross:NaN}), {message:'INVALID_MONEY'});
+  assert.throws(() => calculateAllocation({gross:Number.MAX_SAFE_INTEGER}), {message:'MONEY_OUT_OF_RANGE'});
+});
+
+test('rejeita taxas inválidas',()=>{
+  assert.throws(() => calculateAllocation({gross:10, cashbackRate:-0.01}), {message:'INVALID_RATE'});
+  assert.throws(() => calculateAllocation({gross:10, cashbackRate:1.01}), {message:'INVALID_RATE'});
+  assert.throws(() => calculateAllocation({gross:10, cashbackRate:NaN}), {message:'INVALID_RATE'});
+});
+
+test('é determinística para a mesma entrada',()=>{
+  const input={gross:79.9, cashbackRate:0.1};
+  assert.deepEqual(calculateAllocation(input), calculateAllocation(input));
+});
