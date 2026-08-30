@@ -18,8 +18,11 @@ jobs:
         run: pnpm install --lockfile-only
       - name: Install from generated lockfile
         run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Dependency audit
+      - name: Dependency audit high/critical
         run: pnpm audit --audit-level high
+      - name: Dependency audit moderate report
+        continue-on-error: true
+        run: pnpm audit --audit-level moderate
       - name: Unit tests
         run: pnpm test
       - name: Typecheck
