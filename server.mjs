@@ -36,13 +36,17 @@ const apiError=(res,status,code,message='Não foi possível processar a solicita
 function parseCookies(req){return Object.fromEntries((req.headers.cookie||'').split(';').map(v=>v.trim()).filter(Boolean).map(v=>{const i=v.indexOf('=');return i<0?[v,'']:[v.slice(0,i),decodeURIComponent(v.slice(i+1))]}))}
 function bearer(req){const h=req.headers.authorization||'';return h.startsWith('Bearer ')?h.slice(7):null}
 function cleanupSessions(){const now=Date.now();for(const [token,s] of sessions){if(now-s.createdAt>SESSION_TTL_MS)sessions.delete(token)}while(sessions.size>=MAX_SESSIONS)sessions.delete(sessions.keys().next().value)}
-function newSession(){cleanupSessions();const token=randomUUID();const session={token,role:'resident',cashbackCents:2780,orders:0,condoRevenueCents:0,legalAcceptedVersion:null,createdAt:Date.now(),idempotency:new Map()};sessions.set(token,session);return session}
+function newSession(kind){cleanupSessions();const token=randomUUID();const session={token,kind,role:'resident',cashbackCents:2780,orders:0,condoRevenueCents:0,legalAcceptedVersion:null,createdAt:Date.now(),idempotency:new Map()};sessions.set(token,session);return session}
 function lookupSession(token){if(!token)return null;const session=sessions.get(token);if(!session)return null;if(Date.now()-session.createdAt>SESSION_TTL_MS){sessions.delete(token);return null}return session}
 function getSession(req,{createCookieSession=false}={}){
   const bearerToken=bearer(req);
-  if(bearerToken)return lookupSession(bearerToken);
+  if(bearerToken){
+    const session=lookupSession(bearerToken);
+    return session?.kind==='mobile' ? session : null;
+  }
   const cookieToken=parseCookies(req).life_session;
-  return lookupSession(cookieToken)||(createCookieSession?newSession():null);
+  const session=lookupSession(cookieToken);
+  return session?.kind==='web' ? session : (createCookieSession?newSession('web'):null);
 }
 function publicSession(session){return {role:session.role,cashbackCents:session.cashbackCents,orders:session.orders,condoRevenueCents:session.condoRevenueCents,legalAcceptedVersion:session.legalAcceptedVersion}}
 function setSessionCookie(session){const secure=(process.env.APP_URL||'').startsWith('https://')?'; Secure':'';return `life_session=${encodeURIComponent(session.token)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400${secure}`}
@@ -75,7 +79,8 @@ const server=createServer(async(req,res)=>{
     // Mobile demo session: independent bearer session and no cookie bridging.
     if(pathname==='/api/mobile/session'&&req.method==='GET'){
       const token=bearer(req);
-      const session=token?lookupSession(token):newSession();
+      const session=token?lookupSession(token):newSession('mobile');
+      if(session?.kind!=='mobile')return apiError(res,401,'INVALID_SESSION','Sessão mobile inválida.');
       if(!session)return apiError(res,401,'INVALID_SESSION','Sessão expirada ou inválida.');
       return json(res,200,{session:publicSession(session),legalVersion:LEGAL_VERSION,sessionToken:session.token});
     }

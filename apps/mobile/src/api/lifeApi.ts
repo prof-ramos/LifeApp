@@ -20,7 +20,7 @@ async function fetchJson<T>(path:string,init:RequestInit={},sessionToken?:string
 }
 
 async function createSession():Promise<SessionResponse>{
-  const payload=await fetchJson<SessionResponse>('/api/session',{headers:{'x-life-client':'mobile'}});
+  const payload=await fetchJson<SessionResponse>('/api/mobile/session');
   if(!payload.sessionToken)throw new Error('SESSION_TOKEN_MISSING');
   await saveToken(payload.sessionToken);
   return payload;
@@ -29,7 +29,7 @@ async function createSession():Promise<SessionResponse>{
 export async function bootstrapSession():Promise<SessionResponse>{
   const saved=await token();
   if(!saved)return createSession();
-  try{return await fetchJson<SessionResponse>('/api/session',{},saved)}
+  try{return await fetchJson<SessionResponse>('/api/mobile/session',{},saved)}
   catch(error){
     if((error as Error&{status?:number}).status!==401)throw error;
     await clearToken();
