@@ -1,0 +1,165 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+# CodeRabbit configuration for Life Super App.
+# Keep this file aligned with ARCHITECTURE.md and ADRs as the codebase evolves.
+
+language: "pt-BR"
+early_access: false
+
+chat:
+  auto_reply: true
+
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  review_status: true
+  review_details: true
+  changed_files_summary: true
+  sequence_diagrams: true
+  collapse_walkthrough: false
+  poem: false
+
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 10
+    drafts: false
+    base_branches:
+      - "main"
+      - "develop"
+      - "release/.*"
+    ignore_title_keywords:
+      - "WIP"
+      - "[skip review]"
+    labels:
+      - "!do-not-review"
+
+  pre_merge_checks:
+    description:
+      mode: warning
+    docstrings:
+      mode: off
+
+  path_filters:
+    - "!**/node_modules/**"
+    - "!**/dist/**"
+    - "!**/build/**"
+    - "!**/coverage/**"
+    - "!**/.next/**"
+    - "!**/.expo/**"
+    - "!**/.expo-shared/**"
+    - "!**/android/**"
+    - "!**/ios/**"
+    - "!**/*.min.js"
+    - "!**/*.map"
+    - "!**/*.lock"
+
+  path_instructions:
+    - path: "apps/api/**/*.{ts,tsx,js,mjs}"
+      instructions: |
+        Revise como backend crítico de marketplace e operações financeiras.
+        - Priorize autenticação, autorização contextual, isolamento multi-tenant e validação de entrada.
+        - Não confie em IDs de condomínio, usuário, loja ou recurso fornecidos pelo cliente sem validar ownership/escopo no servidor.
+        - Exija idempotência em pagamentos, webhooks, cashback, ledger, reembolsos, settlements e revenue share.
+        - Sinalize qualquer cálculo financeiro com ponto flutuante; valores monetários devem usar representação decimal/inteira segura.
+        - Sinalize mutações de saldo sem lançamento correspondente no ledger.
+        - Verifique transações atômicas, tratamento de concorrência, rollback e consistência de estados.
+        - Não permita secrets, tokens, dados completos de cartão ou PII sensível em logs.
+        - Preserve compatibilidade retroativa de contratos públicos sempre que possível.
+
+    - path: "**/finance*.{ts,js,mjs}"
+      instructions: |
+        Trate este código como financeiramente crítico.
+        - Verifique invariantes entre valor bruto, taxas, cashback, receita Life, repasse do empreendedor e revenue share do condomínio.
+        - O condomínio recebe 10% apenas da receita Life elegível, nunca 10% do GMV por padrão.
+        - Exija testes para cancelamento, reembolso total/parcial, duplicidade de webhook, arredondamento e valores-limite.
+        - Toda operação deve ser determinística, auditável e idempotente.
+
+    - path: "**/{ledger,payments,cashback,revenue-share,settlements}/**"
+      instructions: |
+        Área crítica financeira.
+        - PostgreSQL/backend é a fonte de verdade; não aceite estado financeiro do cliente como autoridade.
+        - Verifique integridade do ledger, dupla entrada/invariantes adotados, conciliação e rastreabilidade.
+        - Procure condições de corrida, processamento duplicado e transições de estado inválidas.
+        - Alterações devem incluir testes de sucesso, falha, rollback, estorno e reprocessamento.
+
+    - path: "apps/mobile/**/*.{ts,tsx,js,jsx}"
+      instructions: |
+        Revise segundo boas práticas atuais de Expo/React Native.
+        - SQLite local serve apenas para cache, offline e fila de sincronização; nunca deve autorizar saldo, pagamento, cashback definitivo ou revenue share.
+        - Valide estratégias de sincronização, versionamento de schema e conflitos offline.
+        - Dados sensíveis não devem ser persistidos em armazenamento inseguro; use armazenamento seguro quando aplicável.
+        - Verifique acessibilidade, safe areas, estados loading/error/empty/offline e diferenças iOS/Android.
+        - Evite listas grandes com ScrollView + map; prefira componentes virtualizados adequados.
+        - Procure leaks em effects/listeners e uso desnecessário de memória.
+        - Evite any e mantenha contratos tipados.
+
+    - path: "apps/mobile/**/*sqlite*.{ts,tsx,js}"
+      instructions: |
+        Revise persistência SQLite com atenção especial.
+        - Use queries parametrizadas/prepared statements para dados dinâmicos.
+        - Verifique migrations/versionamento e compatibilidade com instalações existentes.
+        - Avalie transações para operações relacionadas.
+        - Não trate dados locais como fonte de verdade financeira.
+        - Verifique limpeza/expiração de cache e comportamento após logout/troca de usuário.
+
+    - path: "apps/web/**/*.{ts,tsx,js,jsx}"
+      instructions: |
+        Revise como Next.js/WebApp de produção.
+        - Garanta separação correta entre código cliente e servidor e não exponha secrets no bundle.
+        - Verifique autenticação/autorização também no servidor; ocultar UI não é controle de acesso.
+        - Preserve acessibilidade, responsividade e estados loading/error/empty.
+        - Evite fetches duplicados, waterfalls e hidratação inconsistente.
+        - Valide dados externos e trate links externos de forma segura.
+
+    - path: "prototype/**"
+      instructions: |
+        Este diretório é uma vertical de validação do MVP, não a arquitetura final.
+        - Aponte bugs funcionais, segurança óbvia e divergências das regras de negócio.
+        - Não exija complexidade de produção desnecessária neste diretório.
+        - Não permita que mocks sejam confundidos com integrações financeiras reais.
+
+    - path: "**/*.{test,spec}.{ts,tsx,js,mjs}"
+      instructions: |
+        Revise a qualidade dos testes.
+        - Exija nomes claros e assertions relevantes.
+        - Priorize casos de erro, limites, concorrência e regressões.
+        - Para regras financeiras, verifique cancelamento, reembolso, cashback, revenue share, arredondamento e idempotência.
+        - Evite testes que apenas reproduzem a implementação sem validar comportamento observável.
+
+    - path: "**/prisma/**"
+      instructions: |
+        Revise alterações de schema/migrations com foco em segurança de dados.
+        - Identifique migrations destrutivas, perda potencial de dados e mudanças sem rollback/estratégia de compatibilidade.
+        - Verifique constraints, índices, unicidade, foreign keys e campos monetários.
+        - Considere multi-tenancy e auditabilidade nos modelos afetados.
+
+    - path: "compose*.yml"
+      instructions: |
+        Revise infraestrutura self-hosted e adequada a recursos limitados.
+        - Não permita secrets hardcoded.
+        - Verifique volumes persistentes, healthchecks, redes e exposição mínima de portas.
+        - PostgreSQL, Redis e object storage devem permanecer substituíveis/portáveis.
+        - Evite adicionar serviços pesados sem justificativa concreta para o MVP.
+
+    - path: "**/Dockerfile"
+      instructions: |
+        - Prefira imagens enxutas e builds multi-stage quando apropriado.
+        - Não copie secrets para imagens.
+        - Evite executar como root quando não for necessário.
+        - Verifique cache de dependências, reproducibilidade e tamanho final.
+
+    - path: "**/.env*.example"
+      instructions: |
+        - Apenas nomes e valores de exemplo seguros podem ser versionados.
+        - Sinalize qualquer segredo, token ou credencial real.
+        - Garanta que novas variáveis relevantes estejam documentadas.
+
+    - path: "docs/**/*.md"
+      instructions: |
+        Verifique clareza, consistência e aderência às decisões atuais do Life.
+        - Sinalize documentação incompatível com a arquitetura self-hosted.
+        - PostgreSQL permanece a fonte central da verdade; SQLite é armazenamento local/offline no mobile.
+        - Supabase não faz parte da arquitetura principal.
+        - Não apresente mocks ou integrações pendentes como funcionalidades de produção.
