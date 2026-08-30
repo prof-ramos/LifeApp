@@ -12,7 +12,11 @@ createServer(async(req,res)=>{
     if(pathname==='/api/health')return json(res,200,{status:'ok',service:'life-mvp',time:new Date().toISOString()});
     if(pathname==='/api/checkout/quote'&&req.method==='POST'){
       const input=await body(req);
-      const allocation=calculateAllocation({gross:Number(input.gross),cashbackRate:Number(input.cashbackRate||0)});
+      const allocation=calculateAllocation({
+        gross:Number(input.gross),
+        cashbackRate:Number(input.cashbackRate||0),
+        cashbackUsed:Number(input.cashbackUsed||0),
+      });
       return json(res,200,{allocation,provider:'mock',currency:'BRL'});
     }
     let path=pathname==='/'?'/index.html':pathname;
