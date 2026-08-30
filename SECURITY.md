@@ -16,6 +16,14 @@ O backend de produção deverá ser o serviço NestJS/PostgreSQL descrito na arq
 - O contexto de condomínio deve ser derivado da sessão/membership no servidor; nunca confiar em `condominiumId` arbitrário vindo do cliente.
 - O ledger de produção deve ser imutável por reversões compensatórias, auditável e reconciliável.
 
+## Política de dependências
+
+- Dependências diretas são fixadas por versão e o repositório mantém `pnpm-lock.yaml`.
+- CI instala com `--frozen-lockfile` e bloqueia vulnerabilidades `high`/`critical` via `pnpm audit`.
+- GitHub Actions são fixadas por SHA.
+- `postcss` é forçado para `8.5.18` ou superior corrigido através de override central.
+- O upstream `image-size` foi arquivado sem publicar correção para CVE-2025-71329/CVE-2025-71330. O grafo transitivo do Expo/Metro é substituído pelo drop-in `image-size-next@2.1.1`, fixado por versão e lockfile. Remover esse override quando o toolchain oficial deixar de depender do pacote vulnerável.
+
 ## Requisitos antes de produção
 
 1. Substituir a sessão anônima em memória do demo por autenticação real no NestJS.
