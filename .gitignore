@@ -1,0 +1,39 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build/cache
+.next/
+.expo/
+dist/
+build/
+coverage/
+.turbo/
+*.tsbuildinfo
+
+# environment and secrets
+.env
+.env.*
+!.env.example
+!.env.compose.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+credentials.json
+secrets.json
+
+# local data
+*.sqlite
+*.sqlite3
+*.db
+.DS_Store
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# editors
+.vscode/
+.idea/
