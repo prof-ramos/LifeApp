@@ -1,46 +1,33 @@
 import Storage from 'expo-sqlite/kv-store';
 
-const KEYS = {
-  cashback: 'life.cashback',
-  orders: 'life.orders',
-  legalAcceptedVersion: 'life.legalAcceptedVersion',
+// SQLite é somente cache de apresentação/offline. Nunca autoriza compra, saldo,
+// cashback, papel de usuário ou aceite jurídico. O servidor sempre prevalece.
+const KEYS={
+  cashbackCents:'life.cache.cashbackCents',
+  orders:'life.cache.orders',
+  legalAcceptedVersion:'life.cache.legalAcceptedVersion',
 } as const;
 
-export type LocalLifeState = {
-  cashback: number;
-  orders: number;
-  legalAcceptedVersion: string | null;
-};
+export type LocalLifeCache={cashbackCents:number;orders:number;legalAcceptedVersion:string|null};
+const EMPTY_CACHE:LocalLifeCache={cashbackCents:0,orders:0,legalAcceptedVersion:null};
 
-const DEFAULT_STATE: LocalLifeState = {
-  cashback: 27.8,
-  orders: 0,
-  legalAcceptedVersion: null,
-};
-
-export async function loadLocalLifeState(): Promise<LocalLifeState> {
-  const [cashbackRaw, ordersRaw, legalAcceptedVersion] = await Promise.all([
-    Storage.getItem(KEYS.cashback),
-    Storage.getItem(KEYS.orders),
-    Storage.getItem(KEYS.legalAcceptedVersion),
+export async function loadLocalLifeCache():Promise<LocalLifeCache>{
+  const [cashbackRaw,ordersRaw,legalAcceptedVersion]=await Promise.all([
+    Storage.getItem(KEYS.cashbackCents),Storage.getItem(KEYS.orders),Storage.getItem(KEYS.legalAcceptedVersion),
   ]);
-
-  const cashback = cashbackRaw === null ? DEFAULT_STATE.cashback : Number(cashbackRaw);
-  const orders = ordersRaw === null ? DEFAULT_STATE.orders : Number(ordersRaw);
-
+  const cashbackCents=cashbackRaw===null?0:Number(cashbackRaw);
+  const orders=ordersRaw===null?0:Number(ordersRaw);
   return {
-    cashback: Number.isFinite(cashback) ? cashback : DEFAULT_STATE.cashback,
-    orders: Number.isFinite(orders) ? orders : DEFAULT_STATE.orders,
+    cashbackCents:Number.isSafeInteger(cashbackCents)&&cashbackCents>=0?cashbackCents:EMPTY_CACHE.cashbackCents,
+    orders:Number.isSafeInteger(orders)&&orders>=0?orders:EMPTY_CACHE.orders,
     legalAcceptedVersion,
   };
 }
 
-export async function saveLocalLifeState(state: LocalLifeState): Promise<void> {
+export async function saveLocalLifeCache(cache:LocalLifeCache):Promise<void>{
   await Promise.all([
-    Storage.setItem(KEYS.cashback, String(state.cashback)),
-    Storage.setItem(KEYS.orders, String(state.orders)),
-    state.legalAcceptedVersion === null
-      ? Storage.removeItem(KEYS.legalAcceptedVersion)
-      : Storage.setItem(KEYS.legalAcceptedVersion, state.legalAcceptedVersion),
+    Storage.setItem(KEYS.cashbackCents,String(cache.cashbackCents)),
+    Storage.setItem(KEYS.orders,String(cache.orders)),
+    cache.legalAcceptedVersion===null?Storage.removeItem(KEYS.legalAcceptedVersion):Storage.setItem(KEYS.legalAcceptedVersion,cache.legalAcceptedVersion),
   ]);
 }

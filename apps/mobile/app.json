@@ -5,6 +5,7 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "plugins": [["expo-secure-store",{"configureAndroidBackup":true}]],
     "ios": {"supportsTablet": true,"bundleIdentifier":"br.com.life.superapp"},
     "android": {"package":"br.com.life.superapp"},
     "web": {"bundler":"metro"}
