@@ -14,11 +14,5 @@
   },
   "engines": {
     "node": ">=22.13.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "postcss": "8.5.18",
-      "image-size": "npm:image-size-next@2.1.1"
-    }
   }
 }
