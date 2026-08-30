@@ -49,5 +49,14 @@ Esses números são do último run verificado localmente e podem mudar quando o 
 1. Adicionar testes de componente com React Native Testing Library quando o workspace mobile estiver instalável no CI.
 2. Adicionar Playwright para validar o fluxo visual real em Chromium.
 3. Adicionar testes de contrato entre cliente mobile e API.
-4. Adicionar testes de autenticação, autorização e isolamento de sessão na branch de hardening.
+4. Adicionar testes de autenticação, autorização e isolamento de sessão.
 5. Adicionar testes de carga para limites de rate e timeout quando houver ambiente de CI apropriado.
+
+## Nota sobre hardening e endpoint mobile
+
+O branch `security/hardening-complete` contém correções críticas de segurança, mas inclui uma mudança que pode quebrar a funcionalidade mobile:
+
+- `apps/mobile/src/api/lifeApi.ts` alterou o endpoint de `/api/session` para `/api/mobile/session`.
+- Isso exige testes de integração no ambiente Expo (SecureStore + fetch).
+
+**Status atual**: o PR #5 foi fechado devido a conflito de merge. Quando o CI mobile estiver configurado, crie uma nova branch com testes de contrato mobile e mergue após validação completa.
