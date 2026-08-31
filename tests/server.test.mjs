@@ -57,6 +57,29 @@ test('checkout quote calcula uma cotação válida', async () => {
   assert.equal(payload.allocation.condominiumShare, 0.85);
 });
 
+test('checkout quote calcula resgate no limite e cashback sobre o valor pago', async () => {
+  const response = await fetch(`${baseUrl}/api/checkout/quote`, {
+    method: 'POST',
+    headers: {'content-type': 'application/json'},
+    body: JSON.stringify({gross: 100, cashbackUsed: 50, cashbackRate: 0.1}),
+  });
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  assert.equal(payload.allocation.cashbackUsed, 50);
+  assert.equal(payload.allocation.customerPayable, 50);
+  assert.equal(payload.allocation.cashbackEarned, 5);
+});
+
+test('POST direto não contorna o teto de 50% do cashback', async () => {
+  const response = await fetch(`${baseUrl}/api/checkout/quote`, {
+    method: 'POST',
+    headers: {'content-type': 'application/json'},
+    body: JSON.stringify({gross: 100, cashbackUsed: 50.01}),
+  });
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error.code, 'CASHBACK_LIMIT_EXCEEDED');
+});
+
 test('quote rejeita JSON inválido, taxas inválidas e dinheiro negativo', async () => {
   const cases = [
     {body: '{not-json', code: 'INVALID_JSON'},
@@ -115,4 +138,18 @@ test('rota estática inexistente serve index.html como fallback (SPA)', async ()
   assert.equal(response.status, 200);
   const text = await response.text();
   assert.ok(text.includes('<!doctype html>'), 'should contain HTML doctype');
+});
+
+test('documentos jurídicos versionados ficam acessíveis antes do aceite', async () => {
+  const paths = [
+    '/legal/terms-2026-08-30.html',
+    '/legal/privacy-2026-08-30.html',
+  ];
+  const responses = await Promise.all(paths.map(path => fetch(`${baseUrl}${path}`)));
+  assert.ok(responses.every(response => response.status === 200));
+  const texts = await Promise.all(responses.map(response => response.text()));
+  assert.match(texts[0], /Termos de Uso/);
+  assert.match(texts[0], /2026-08-30/);
+  assert.match(texts[1], /Política de Privacidade/);
+  assert.match(texts[1], /2026-08-30/);
 });

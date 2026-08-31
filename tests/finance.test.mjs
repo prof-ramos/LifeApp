@@ -6,6 +6,8 @@ test('calcula cashback e 10% do condomínio sobre receita Life elegível',()=>{
   const r=calculateAllocation({gross:100,cashbackRate:0.04});
   assert.deepEqual(r,{
     gross:100,
+    cashbackUsed:0,
+    customerPayable:100,
     platformFee:15,
     pspFee:2.5,
     cashbackEarned:4,
@@ -92,4 +94,36 @@ test('preserva os invariantes da alocação em centavos',()=>{
 test('arredonda meio centavo para cima de forma determinística',()=>{
   const r = calculateAllocation({gross:0.01, platformFeeRate:0.5, pspFeeRate:0, cashbackRate:0, condoShareRate:0});
   assert.equal(r.platformFee, 0.01);
+});
+
+test('permite resgate exatamente em 50% e calcula novo cashback sobre o valor pago',()=>{
+  const r = calculateAllocation({gross:100, cashbackUsed:50, cashbackRate:0.10});
+  assert.equal(r.cashbackUsed, 50);
+  assert.equal(r.customerPayable, 50);
+  assert.equal(r.cashbackEarned, 5);
+});
+
+test('rejeita resgate um centavo acima de 50% do bruto',()=>{
+  assert.throws(
+    () => calculateAllocation({gross:100, cashbackUsed:50.01}),
+    {message:'CASHBACK_LIMIT_EXCEEDED'},
+  );
+});
+
+test('rejeita resgate negativo, não finito e maior que saldo conhecido',()=>{
+  for (const cashbackUsed of [-0.01, NaN, Infinity]) {
+    assert.throws(
+      () => calculateAllocation({gross:100, cashbackUsed}),
+      {message:'INVALID_CASHBACK_USED'},
+    );
+  }
+
+  assert.throws(
+    () => calculateAllocation({gross:100, cashbackUsed:10.01, cashbackBalance:10}),
+    {message:'INSUFFICIENT_CASHBACK_BALANCE'},
+  );
+  assert.equal(
+    calculateAllocation({gross:100, cashbackUsed:10, cashbackBalance:10}).cashbackUsed,
+    10,
+  );
 });

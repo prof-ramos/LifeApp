@@ -1,5 +1,13 @@
-const CACHE = 'life-mvp-v2';
-const ASSETS = ['/', '/index.html', '/styles.css', '/app.js', '/manifest.webmanifest'];
+const CACHE = 'life-mvp-v3';
+const ASSETS = [
+  '/',
+  '/index.html',
+  '/styles.css',
+  '/app.js',
+  '/manifest.webmanifest',
+  '/legal/terms-2026-08-30.html',
+  '/legal/privacy-2026-08-30.html',
+];
 
 self.addEventListener('install', event => {
   event.waitUntil(
