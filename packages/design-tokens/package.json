@@ -1,0 +1,7 @@
+{
+  "name": "@life/design-tokens",
+  "private": true,
+  "version": "0.1.0",
+  "main": "tokens.cjs",
+  "types": "index.d.ts"
+}
