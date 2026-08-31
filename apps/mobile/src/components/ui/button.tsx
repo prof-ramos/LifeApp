@@ -18,5 +18,5 @@ const sizeClass: Record<Size,string> = {
 export type ButtonProps = PressableProps & { children: ReactNode; variant?: Variant; size?: Size; className?: string };
 
 export function Button({ children, variant='default', size='default', className, disabled, ...props }: ButtonProps) {
-  return <Pressable accessibilityRole="button" disabled={disabled} className={cn('items-center justify-center rounded-md active:opacity-80', variantClass[variant], sizeClass[size], disabled && 'opacity-50', className)} {...props}><Text className={cn('text-sm font-black', textClass[variant])}>{children}</Text></Pressable>;
+  return <Pressable accessibilityRole="button" disabled={disabled} className={cn('items-center justify-center rounded-md border-2 border-transparent active:opacity-80 focus:border-primary focus:bg-primary/10', variantClass[variant], sizeClass[size], disabled && 'opacity-50', className)} {...props}><Text className={cn('text-sm font-black', textClass[variant])}>{children}</Text></Pressable>;
 }
