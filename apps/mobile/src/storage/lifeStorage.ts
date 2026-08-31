@@ -13,6 +13,7 @@ export type LocalLifeState = {
 };
 
 const KEYS = {
+  state: 'life.state',
   cashback: 'life.cashback',
   orders: 'life.orders',
   legalConsent: 'life.legal-consent',
@@ -22,6 +23,16 @@ export type {LocalLifeState};
 export {DEFAULT_STATE};
 
 export async function loadLocalLifeState(): Promise<LocalLifeState> {
+  const stateRaw = await Storage.getItem(KEYS.state);
+  if (stateRaw !== null) {
+    try {
+      const state = JSON.parse(stateRaw) as Partial<LocalLifeState>;
+      return parseLocalLifeState(state.cashback, state.orders, state.legalConsent) as LocalLifeState;
+    } catch {
+      // Um estado agregado corrompido não deve impedir a migração dos valores legados.
+    }
+  }
+
   const [cashbackRaw, ordersRaw, legalConsentRaw] = await Promise.all([
     Storage.getItem(KEYS.cashback),
     Storage.getItem(KEYS.orders),
@@ -32,9 +43,6 @@ export async function loadLocalLifeState(): Promise<LocalLifeState> {
 }
 
 export async function saveLocalLifeState(state: LocalLifeState): Promise<void> {
-  await Promise.all([
-    Storage.setItem(KEYS.cashback, String(state.cashback)),
-    Storage.setItem(KEYS.orders, String(state.orders)),
-    Storage.setItem(KEYS.legalConsent, JSON.stringify(state.legalConsent)),
-  ]);
+  // Uma única chave mantém o próximo estado indivisível para o consumidor.
+  await Storage.setItem(KEYS.state, JSON.stringify(state));
 }

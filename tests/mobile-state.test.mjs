@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
 import {DEFAULT_STATE, LEGAL_VERSION, parseLocalLifeState} from '../apps/mobile/src/storage/lifeState.js';
+
+const storageSource = await fs.readFile(new URL('../apps/mobile/src/storage/lifeStorage.ts', import.meta.url), 'utf8');
+const appSource = await fs.readFile(new URL('../apps/mobile/App.tsx', import.meta.url), 'utf8');
 
 test('usa os valores padrão quando o armazenamento está vazio', () => {
   assert.deepEqual(parseLocalLifeState(null, null), DEFAULT_STATE);
@@ -41,4 +45,13 @@ test('normaliza consentimento jurídico com documento e versão para os dois tex
     terms: {document: 'terms-of-use', version: LEGAL_VERSION, acceptedAt},
     privacy: {document: 'privacy-policy', version: LEGAL_VERSION, acceptedAt},
   });
+});
+
+test('persiste o estado mobile agregado e usa safe areas compatíveis com Expo', () => {
+  assert.match(storageSource, /state: 'life\.state'/);
+  assert.match(storageSource, /Storage\.setItem\(KEYS\.state/);
+  assert.doesNotMatch(storageSource, /Promise\.all\(\[\s*Storage\.setItem/);
+  assert.match(appSource, /react-native-safe-area-context/);
+  assert.doesNotMatch(appSource, /from 'react-native';[^\n]*SafeAreaView/);
+  assert.doesNotMatch(appSource, /localhost:4173/);
 });
