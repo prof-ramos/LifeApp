@@ -18,15 +18,16 @@
 | Gestão condomínio | Funcional demonstrativo | Dashboard e participação financeira |
 | PWA | Funcional | Manifest + service worker básico |
 | iOS/Android | MVP Expo | Shell React Native implementado |
-| SQLite mobile | Funcional | `expo-sqlite/kv-store` para estado local |
+| Sessão web/mobile | Parcial funcional | Cookie web e bearer mobile; estado demonstrativo em memória |
+| SecureStore mobile | Funcional | Guarda somente o token da sessão demonstrativa |
 | PostgreSQL | Infra definida | Fonte da verdade futura para backend |
 
-## Persistência mobile
+## Sessão e persistência demonstrativas
 
-- SQLite local via `expo-sqlite/kv-store`.
-- Cashback demonstrativo e quantidade de pedidos persistem entre reinicializações.
-- PostgreSQL permanece como autoridade para dados centrais e financeiros.
-- Nenhum saldo local deve autorizar movimentação financeira real sem validação do backend.
+- Web usa cookie `HttpOnly`, `SameSite=Strict`; mobile usa bearer token guardado no `expo-secure-store`.
+- O servidor mantém sessão, aceite, saldo, pedidos e idempotência em `Map` process-local apenas para demonstrar o contrato.
+- Reiniciar o processo descarta o estado demonstrativo; PostgreSQL permanece como autoridade futura para dados centrais e financeiros.
+- Nenhum saldo local ou token demonstrativo deve autorizar movimentação financeira real sem validação do backend.
 
 ## Critério para beta operacional
 

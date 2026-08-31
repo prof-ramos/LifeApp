@@ -4,7 +4,7 @@ MVP funcional de validação do Life, orientado aos fluxos críticos do PRD.
 
 ## O que já funciona no protótipo
 
-- onboarding com aceite de documentos legais (registro local demonstrativo);
+- onboarding com aceite de documentos legais (registro no servidor demonstrativo);
 - Home personalizada do morador;
 - área condominial com encomenda e convite de visitante;
 - marketplace com lojas, produtos/serviços e perfil do anunciante;
@@ -21,7 +21,7 @@ MVP funcional de validação do Life, orientado aos fluxos críticos do PRD.
 - Explorar com links externos claramente identificados;
 - visão do empreendedor;
 - visão de gestão do condomínio;
-- persistência local via `localStorage`;
+- sessão web por cookie HttpOnly e sessão mobile por token no `SecureStore`;
 - PWA com service worker básico.
 
 ## Executar agora
@@ -50,7 +50,7 @@ Não há dependências npm para o protótipo web, portanto ele inicia imediatame
 
 ## Importante
 
-Este pacote é um MVP de produto/UX e de regras de negócio executáveis no cliente. Ele **não é produção**.
+Este pacote é um MVP de produto/UX e de regras de negócio demonstrativas. Ele **não é produção**.
 
 Antes de operação real, ainda devem ser implementados no backend: PostgreSQL como fonte da verdade; autenticação e autorização RBAC/contextual; API NestJS; ledger financeiro persistente e auditável; integração real com PSP e webhooks assinados; conciliação, estorno, disputa e settlement; storage S3-compatible; logs de auditoria; notificações push; moderação; direitos LGPD; backups e restore testado.
 
@@ -73,11 +73,11 @@ Veja `docs/MVP-STATUS.md`.
 
 O pacote contém `apps/mobile`, com uma implementação Expo SDK 57 do núcleo visual para iOS/Android.
 
-## Persistência local mobile
+## Sessão e persistência demonstrativas
 
-O app Expo usa `expo-sqlite` para persistência local leve (cache/offline e estado do MVP). A camada local **não é a fonte da verdade financeira**: pagamentos, ledger, cashback definitivo e revenue share deverão ser validados pelo backend/PostgreSQL.
+O protótipo web usa um cookie `HttpOnly` e o shell Expo guarda somente o token de sessão no `expo-secure-store`. O estado financeiro demonstrativo, o aceite jurídico e a idempotência ficam no servidor em memória; reiniciar o processo descarta essas sessões. Essa implementação prova o contrato e não substitui PostgreSQL, autenticação de produção ou um ledger persistente.
 
 ```bash
 cd apps/mobile
-npx expo install expo-sqlite
+npx expo install expo-secure-store
 ```
