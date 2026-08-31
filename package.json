@@ -9,9 +9,12 @@
     "test": "node --test tests/*.test.mjs",
     "test:coverage": "node --test --experimental-test-coverage tests/*.test.mjs",
     "check:web": "pnpm --filter @life/web typecheck",
-    "build:web": "pnpm --filter @life/web build"
+    "build:web": "pnpm --filter @life/web build",
+    "typecheck": "pnpm --filter @life/web typecheck && pnpm --filter @life/mobile-mvp typecheck",
+    "build": "pnpm --filter @life/web build",
+    "security:audit": "pnpm audit --audit-level high"
   },
-  "packageManager": "pnpm@11.24.0",
+  "packageManager": "pnpm@10.34.5",
   "engines": {
     "node": ">=20.19.0"
   }
