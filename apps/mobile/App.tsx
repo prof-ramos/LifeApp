@@ -1,22 +1,21 @@
+import './global.css';
 import React, {useEffect, useMemo, useRef, useState} from 'react';
-import {Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Modal, Pressable, ScrollView, Text, View} from 'react-native';
 import {SafeAreaProvider, SafeAreaView as SafeAreaViewCompat} from 'react-native-safe-area-context';
 import {LEGAL_DOCUMENTS, LEGAL_VERSION} from './src/storage/lifeState';
 import {loadLocalLifeState, saveLocalLifeState} from './src/storage/lifeStorage';
 import type {LocalLifeState} from './src/storage/lifeStorage';
+import {Button} from './src/components/ui/button';
+import {Card, CardDescription, CardTitle} from './src/components/ui/card';
+import {MerchantCard} from './src/components/life/merchant-card';
+import {WalletCard} from './src/components/life/wallet-card';
 
 type Tab='home'|'market'|'social'|'insights'|'profile';
-type Merchant={id:number;name:string;category:string;rating:number;cashback:number;emoji:string;item:string;price:number};
 type LegalKey='terms'|'privacy';
 type LegalSelection={terms:boolean;privacy:boolean};
+type Merchant={id:number;name:string;category:string;rating:number;cashback:number;emoji:string;item:string;price:number};
 type LegalConsent=LocalLifeState['legalConsent'];
-const merchants:Merchant[]=[
-  {id:1,name:'Casa Verde Market',category:'Mercado',rating:4.9,cashback:8,emoji:'🥬',item:'Cesta Fresh',price:64.9},
-  {id:2,name:'Studio Nômade',category:'Beleza',rating:4.8,cashback:12,emoji:'✂️',item:'Corte Premium',price:55},
-  {id:3,name:'Resolve Casa',category:'Serviços',rating:4.9,cashback:10,emoji:'🛠️',item:'Visita técnica',price:79.9},
-];
-const brl=(n:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n);
-const legalCopy:Record<LegalKey,{title:string;sections:Array<{heading:string;body:string}>}>={
+const LEGAL_COPY:Record<LegalKey,{title:string;sections:Array<{heading:string;body:string}>}>= {
   terms:{title:'Termos de Uso',sections:[
     {heading:'Sobre o Life',body:'O Life é uma experiência demonstrativa de condomínio, marketplace, comunidade e benefícios. As telas e o checkout usam dados simulados e não representam uma oferta de pagamento, crédito ou serviço financeiro.'},
     {heading:'Uso da experiência',body:'Use o produto de modo lícito, mantenha seu acesso sob sua responsabilidade e não tente explorar falhas, contornar validações ou inserir conteúdo que viole direitos de terceiros.'},
@@ -30,6 +29,12 @@ const legalCopy:Record<LegalKey,{title:string;sections:Array<{heading:string;bod
     {heading:'Direitos e contato',body:'Pedidos de acesso, correção, eliminação, portabilidade ou oposição deverão usar o canal de privacidade indicado no produto. O canal e o encarregado ainda dependem de definição e aprovação.'},
   ]},
 };
+const merchants:Merchant[]=[
+  {id:1,name:'Casa Verde Market',category:'Mercado',rating:4.9,cashback:8,emoji:'🥬',item:'Cesta Fresh',price:64.9},
+  {id:2,name:'Studio Nômade',category:'Beleza',rating:4.8,cashback:12,emoji:'✂️',item:'Corte Premium',price:55},
+  {id:3,name:'Resolve Casa',category:'Serviços',rating:4.9,cashback:10,emoji:'🛠️',item:'Visita técnica',price:79.9},
+];
+const brl=(n:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n);
 
 export default function App(){
   const [tab,setTab]=useState<Tab>('home');
@@ -37,42 +42,35 @@ export default function App(){
   const [orders,setOrders]=useState(0);
   const [legalConsent,setLegalConsent]=useState<LegalConsent>(null);
   const [legalSelection,setLegalSelection]=useState<LegalSelection>({terms:false,privacy:false});
-  const [stateReady,setStateReady]=useState(false);
   const [openDocument,setOpenDocument]=useState<LegalKey|null>(null);
-  const [purchaseInFlight,setPurchaseInFlight]=useState(false);
+  const [hydrated,setHydrated]=useState(false);
+  const [isPurchasing,setIsPurchasing]=useState(false);
   const [message,setMessage]=useState('');
   const purchaseLock=useRef(false);
-  const spent=1040;
+  const localRef=useRef<LocalLifeState>({cashback:27.8,orders:0,legalConsent:null});
 
   useEffect(()=>{
     let active=true;
     loadLocalLifeState().then(state=>{
       if(!active)return;
+      localRef.current=state;
       setCashback(state.cashback);
       setOrders(state.orders);
       setLegalConsent(state.legalConsent);
-    }).catch(()=>{
-      if(active)setMessage('Não foi possível carregar seu estado local.');
-    }).finally(()=>{if(active)setStateReady(true)});
+    }).catch(()=>{if(active)setMessage('Não foi possível carregar seu estado local.')}).finally(()=>{if(active)setHydrated(true)});
     return()=>{active=false};
   },[]);
 
   const persistNext=async(next:LocalLifeState)=>{
     await saveLocalLifeState(next);
+    localRef.current=next;
     setCashback(next.cashback);
     setOrders(next.orders);
     setLegalConsent(next.legalConsent);
   };
 
-  const openLegal=(key:LegalKey)=>setOpenDocument(key);
-
-  const toggleLegal=(key:keyof LegalSelection)=>{
-    if(legalConsent)return;
-    setLegalSelection(current=>({...current,[key]:!current[key]}));
-  };
-
   const acceptLegal=async()=>{
-    if(!stateReady||!legalSelection.terms||!legalSelection.privacy){
+    if(!hydrated||!legalSelection.terms||!legalSelection.privacy){
       setMessage('Leia e marque os dois documentos para continuar.');
       return;
     }
@@ -84,7 +82,7 @@ export default function App(){
       privacy:{document:'privacy-policy',version:LEGAL_VERSION,acceptedAt},
     } as NonNullable<LegalConsent>;
     try{
-      await persistNext({cashback,orders,legalConsent:nextConsent});
+      await persistNext({...localRef.current,legalConsent:nextConsent});
       setMessage('Consentimento registrado.');
     }catch{
       setMessage('Não foi possível salvar o aceite. Tente novamente.');
@@ -94,13 +92,10 @@ export default function App(){
   const buy=async(m:Merchant)=>{
     if(!legalConsent||purchaseLock.current)return;
     purchaseLock.current=true;
-    setPurchaseInFlight(true);
+    setIsPurchasing(true);
+    const current=localRef.current;
     const earned=Math.round(m.price*(m.cashback/100)*100)/100;
-    const next:LocalLifeState={
-      cashback:Math.round((cashback+earned)*100)/100,
-      orders:orders+1,
-      legalConsent,
-    };
+    const next:LocalLifeState={cashback:Math.round((current.cashback+earned)*100)/100,orders:current.orders+1,legalConsent:current.legalConsent};
     try{
       await persistNext(next);
       setMessage(`Pagamento MVP aprovado. Você ganhou ${brl(earned)} de cashback.`);
@@ -108,41 +103,33 @@ export default function App(){
       setMessage('Não foi possível salvar a compra. Nenhuma alteração foi aplicada.');
     }finally{
       purchaseLock.current=false;
-      setPurchaseInFlight(false);
+      setIsPurchasing(false);
     }
   };
 
   const content=useMemo(()=>{
-    if(tab==='market')return <><Heading title="Marketplace" sub="Produtos e serviços próximos. Pagamento sempre dentro do Life."/>{merchants.map(m=><Card key={m.id}><Text style={s.emoji}>{m.emoji}</Text><Text style={s.cardTitle}>{m.name}</Text><Text style={s.muted}>{m.category} · ★ {m.rating}</Text><View style={s.row}><Text style={s.price}>{brl(m.price)}</Text><Text style={s.cash}>{m.cashback}% cashback</Text></View><Text style={s.muted}>{m.item}</Text><Button label="Comprar no Life" onPress={()=>void buy(m)} disabled={purchaseInFlight}/></Card>)}</>;
-    if(tab==='social')return <><Heading title="Comunidade" sub="Experiências locais e avaliações verificadas."/><Card><Text style={s.cardTitle}>Marina S. · ★★★★★</Text><Text style={s.body}>Usei a Resolve Casa hoje. Atendimento pontual e serviço concluído rapidamente.</Text><Text style={s.cash}>Compra verificada</Text></Card></>;
-    if(tab==='insights')return <><Heading title="Insights" sub="Seus gastos transformados em decisões."/><View style={s.metrics}><Mini label="Gastos" value={brl(spent)}/><Mini label="Cashback" value={brl(cashback)}/><Mini label="Pedidos" value={String(9+orders)}/><Mini label="Economia" value={brl(86.4)}/></View><Card><Text style={s.cardTitle}>Melhor uso do cashback</Text><Text style={s.body}>Você costuma usar serviços residenciais. A Resolve Casa tem 10% de cashback e boa reputação perto de você.</Text><Button label="Ver recomendação" onPress={()=>setTab('market')}/></Card></>;
-    if(tab==='profile')return <><Heading title="Gabriel" sub="Life Residence · Torre A · 804"/><Card><Text style={s.cardTitle}>Life Wallet</Text><Text style={s.big}>{brl(cashback)}</Text><Text style={s.muted}>Crédito promocional para uso dentro do Life.</Text></Card><Card><Text style={s.cardTitle}>Privacidade</Text><Text style={s.body}>Perfil social limpo, dados condominiais privados e preferências controláveis.</Text></Card><Card><Text style={s.cardTitle}>Documentos jurídicos</Text>{LEGAL_DOCUMENTS.map(document=><Button key={document.key} label={`Abrir ${document.label} · ${LEGAL_VERSION}`} onPress={()=>openLegal(document.key)}/>)}</Card></>;
-    return <><Card accent><Text style={s.eyebrow}>SEU DIA NO LIFE</Text><Text style={s.hero}>Boa noite.{`\n`}Você tem {brl(cashback)} para usar.</Text><Button label="Usar cashback" onPress={()=>setTab('market')}/></Card><Heading title="Ações rápidas" sub="O essencial sem menus complexos."/><View style={s.quick}><Mini label="📦 Encomenda" value="1 aguardando"/><Mini label="🔑 Visitante" value="Gerar acesso"/><Mini label="🛍️ Comprar" value="Marketplace"/><Mini label="↗ Insights" value="Economizar"/></View></>;
-  },[tab,cashback,orders,purchaseInFlight,legalConsent]);
+    if(tab==='market')return <><SectionTitle eyebrow="Perto de você" title="Marketplace" sub="Produtos e serviços próximos. Pagamento sempre dentro do Life."/>{merchants.map(m=><MerchantCard key={m.id} {...m} processing={isPurchasing} onBuy={()=>void buy(m)}/>)}</>;
+    if(tab==='social')return <><SectionTitle eyebrow="Comunidade" title="O que está acontecendo" sub="Experiências locais e avaliações verificadas."/><Card><CardTitle>Marina S. · ★★★★★</CardTitle><CardDescription className="mt-2">Usei a Resolve Casa hoje. Atendimento pontual e serviço concluído rapidamente.</CardDescription><Text className="mt-4 text-xs font-black text-primary">COMPRA VERIFICADA</Text></Card></>;
+    if(tab==='insights')return <><SectionTitle eyebrow="Seu dinheiro" title="Insights" sub="Gastos transformados em decisões simples."/><View className="mb-1 flex-row flex-wrap justify-between"><Metric label="Gastos" value={brl(1040)}/><Metric label="Cashback" value={brl(cashback)}/><Metric label="Pedidos" value={String(9+orders)}/><Metric label="Economia" value={brl(86.4)}/></View><Card className="bg-card-elevated"><Text className="text-xs font-black uppercase tracking-widest text-primary">Melhor uso</Text><CardTitle className="mt-3">Serviços residenciais combinam com seu histórico.</CardTitle><CardDescription className="mt-2">A Resolve Casa tem 10% de cashback e boa reputação perto de você.</CardDescription><Button className="mt-5" onPress={()=>setTab('market')}>Ver recomendação</Button></Card></>;
+    if(tab==='profile')return <><SectionTitle eyebrow="Sua conta" title="Perfil" sub="Privacidade e controle sem expor dados condominiais."/><WalletCard balance={cashback} onUseCashback={()=>setTab('market')}/><Card className="mt-3"><CardTitle>Documentos legais</CardTitle><CardDescription className="mt-2">Versão aceita: {legalConsent?.terms.version??'nenhuma'}</CardDescription>{LEGAL_DOCUMENTS.map(document=><Button key={document.key} variant="outline" className="mt-3" onPress={()=>setOpenDocument(document.key as LegalKey)}>Abrir {document.label}</Button>)}</Card></>;
+    return <><Text className="mb-2 text-xs font-black uppercase tracking-widest text-primary">Seu dia no Life</Text><Text className="mb-6 text-4xl font-black tracking-tighter text-foreground">Boa noite.{`\n`}Tudo perto de você.</Text><WalletCard balance={cashback} onUseCashback={()=>setTab('market')}/><SectionTitle eyebrow="Seu condomínio" title="Ações rápidas" sub="O essencial sem menus complexos."/><View className="flex-row flex-wrap justify-between"><Metric label="📦 Encomenda" value="1 aguardando"/><Metric label="🔑 Visitante" value="Gerar acesso"/><Metric label="🛍️ Comprar" value="Marketplace"/><Metric label="↗ Insights" value="Economizar"/></View></>;
+  },[tab,cashback,orders,legalConsent,isPurchasing]);
 
-  return <SafeAreaProvider><SafeAreaViewCompat style={s.safe} edges={['top','bottom']}>
-    {!stateReady?<Loading/>:!legalConsent?<LegalGate selection={legalSelection} onToggle={toggleLegal} onOpen={openLegal} onAccept={()=>void acceptLegal()}/>:<>
-      <ScrollView contentContainerStyle={s.container}><View style={s.top}><Text style={s.logo}>LIFE</Text><View style={s.avatar}><Text style={s.avatarText}>GR</Text></View></View>{message?<TouchableOpacity onPress={()=>setMessage('')} style={s.toast}><Text style={s.toastText}>{message}</Text></TouchableOpacity>:null}{content}</ScrollView>
-      <View style={s.nav}>{([['home','⌂','Início'],['market','⌕','Comprar'],['social','◎','Social'],['insights','▥','Insights'],['profile','☺','Perfil']] as const).map(([k,icon,label])=><TouchableOpacity key={k} onPress={()=>setTab(k)} style={[s.navItem,tab===k&&s.navActive]}><Text style={s.navIcon}>{icon}</Text><Text style={s.navLabel}>{label}</Text></TouchableOpacity>)}</View>
+  return <SafeAreaProvider><SafeAreaViewCompat className="flex-1 bg-background" edges={['top','bottom']}>
+    {!hydrated?<View className="flex-1 items-center justify-center bg-background"><Text className="text-xl font-black tracking-widest text-foreground">LIFE</Text><Text className="mt-2 text-sm text-muted-foreground">Carregando…</Text></View>:!legalConsent?<LegalGate selection={legalSelection} onToggle={key=>setLegalSelection(current=>({...current,[key]:!current[key]}))} onOpen={key=>setOpenDocument(key)} onAccept={()=>void acceptLegal()} message={message}/>:<>
+      <ScrollView contentContainerClassName="px-screen pb-32 pt-4"><View className="mb-7 flex-row items-center justify-between"><View className="flex-row items-center gap-3"><View className="h-11 w-11 items-center justify-center rounded-md bg-primary"><Text className="font-black text-primary-foreground">L</Text></View><View><Text className="font-black tracking-widest text-foreground">LIFE</Text><Text className="text-xs text-muted-foreground">Life Residence</Text></View></View><View className="h-11 w-11 items-center justify-center rounded-full bg-secondary"><Text className="text-sm font-black text-foreground">GR</Text></View></View>{message?<Pressable onPress={()=>setMessage('')} className="mb-4 rounded-md bg-primary/10 p-3"><Text className="text-xs font-bold leading-5 text-primary">{message}</Text></Pressable>:null}{content}</ScrollView><View className="absolute bottom-3 left-3 right-3 flex-row justify-around rounded-xl border border-border bg-card p-2">{([['home','⌂','Início'],['social','◎','Social'],['market','⌕','Comprar'],['insights','▥','Insights'],['profile','☺','Perfil']] as const).map(([key,icon,label])=><Pressable key={key} accessibilityRole="button" accessibilityLabel={label} onPress={()=>setTab(key)} className={`min-h-12 flex-1 items-center justify-center rounded-md focus:bg-primary/10 ${tab===key?'bg-primary/10':''}`}><Text className={tab===key?'text-primary':'text-muted-foreground'}>{icon}</Text><Text className={`mt-1 text-[10px] font-bold ${tab===key?'text-primary':'text-muted-foreground'}`}>{label}</Text></Pressable>)}</View>
     </>}
-    {stateReady&&!legalConsent&&message?<TouchableOpacity onPress={()=>setMessage('')} style={s.gateMessage}><Text style={s.toastText}>{message}</Text></TouchableOpacity>:null}
     <LegalDocumentModal documentKey={openDocument} onClose={()=>setOpenDocument(null)}/>
   </SafeAreaViewCompat></SafeAreaProvider>;
 }
 
-function Loading(){return <View style={s.loading}><Text style={s.eyebrow}>LIFE</Text><Text style={s.headingText}>Carregando seu estado…</Text></View>}
-function LegalGate({selection,onToggle,onOpen,onAccept}:{selection:LegalSelection;onToggle:(key:keyof LegalSelection)=>void;onOpen:(key:LegalKey)=>void;onAccept:()=>void}){
-  return <ScrollView contentContainerStyle={s.container}><View style={s.top}><Text style={s.logo}>LIFE</Text><Text style={s.badge}>VERSÃO {LEGAL_VERSION}</Text></View><Card accent><Text style={s.eyebrow}>ANTES DE CONTINUAR</Text><Text style={s.headingText}>Leia os documentos do Life</Text><Text style={s.body}>O aceite registra o documento, a versão e o momento da sua escolha neste MVP demonstrativo.</Text>{LEGAL_DOCUMENTS.map(document=><Button key={document.key} label={`Ler ${document.label} · ${LEGAL_VERSION}`} onPress={()=>onOpen(document.key)}/>)}<CheckRow checked={selection.terms} label="Li e aceito os Termos de Uso" onPress={()=>onToggle('terms')}/><CheckRow checked={selection.privacy} label="Li e aceito a Política de Privacidade" onPress={()=>onToggle('privacy')}/><Button label="Aceitar e continuar" onPress={onAccept} disabled={!selection.terms||!selection.privacy}/></Card></ScrollView>;
+function LegalGate({selection,onToggle,onOpen,onAccept,message}:{selection:LegalSelection;onToggle:(key:LegalKey)=>void;onOpen:(key:LegalKey)=>void;onAccept:()=>void;message:string}){
+  return <ScrollView contentContainerClassName="flex-grow justify-center px-screen py-10"><Text className="text-xs font-black uppercase tracking-widest text-primary">Privacidade e confiança</Text><Text className="mt-3 text-4xl font-black tracking-tighter text-foreground">Antes de começar no Life</Text><Text className="mt-5 text-base leading-6 text-muted-foreground">Leia os dois documentos da versão {LEGAL_VERSION}. O aceite fica registrado localmente neste MVP demonstrativo.</Text>{LEGAL_DOCUMENTS.map(document=><Button key={document.key} variant="outline" className="mt-4" onPress={()=>onOpen(document.key as LegalKey)}>Ler {document.label} · {LEGAL_VERSION}</Button>)}<CheckRow checked={selection.terms} label="Li e aceito os Termos de Uso" onPress={()=>onToggle('terms')}/><CheckRow checked={selection.privacy} label="Li e aceito a Política de Privacidade" onPress={()=>onToggle('privacy')}/><Button className="mt-7" size="lg" disabled={!selection.terms||!selection.privacy} onPress={onAccept}>Aceitar e continuar</Button>{message?<Text className="mt-4 text-sm font-bold text-warning">{message}</Text>:null}</ScrollView>;
 }
-
+function CheckRow({checked,label,onPress}:{checked:boolean;label:string;onPress:()=>void}){return <Pressable accessibilityRole="checkbox" accessibilityState={{checked}} onPress={onPress} className="mt-4 min-h-11 flex-row items-center rounded-md px-1 focus:bg-primary/10"><Text className="mr-3 text-2xl text-primary">{checked?'☑':'☐'}</Text><Text className="flex-1 text-sm leading-5 text-foreground">{label} · {LEGAL_VERSION}</Text></Pressable>}
 function LegalDocumentModal({documentKey,onClose}:{documentKey:LegalKey|null;onClose:()=>void}){
-  const document=documentKey?legalCopy[documentKey]:null;
-  return <Modal visible={document!==null} animationType="slide" onRequestClose={onClose}><SafeAreaViewCompat style={s.modalSafe} edges={['top','bottom']}><View style={s.modalTop}><Text style={s.logo}>LIFE</Text><Text style={s.badge}>VERSÃO {LEGAL_VERSION}</Text></View>{document?<ScrollView contentContainerStyle={s.container}><Text style={s.headingText}>{document.title}</Text><Text style={s.muted}>Documento {documentKey==='terms'?'terms-of-use':'privacy-policy'} · versão {LEGAL_VERSION}</Text><Text style={s.notice}>Minuta do MVP demonstrativo. Revisão e aprovação jurídica são necessárias antes de operação comercial.</Text>{document.sections.map(section=><View key={section.heading}><Text style={s.cardTitle}>{section.heading}</Text><Text style={s.body}>{section.body}</Text></View>)}<Button label="Fechar documento" onPress={onClose}/></ScrollView>:null}</SafeAreaViewCompat></Modal>;
+  const document=documentKey?LEGAL_COPY[documentKey]:null;
+  return <Modal visible={document!==null} animationType="slide" onRequestClose={onClose}><SafeAreaViewCompat className="flex-1 bg-background" edges={['top','bottom']}><View className="flex-row items-center justify-between px-screen py-4"><Text className="font-black tracking-widest text-foreground">LIFE</Text><Text className="text-xs font-black text-primary">VERSÃO {LEGAL_VERSION}</Text></View>{document?<ScrollView contentContainerClassName="px-screen pb-8"><Text className="text-3xl font-black text-foreground">{document.title}</Text><Text className="mt-2 text-xs text-muted-foreground">Documento {documentKey==='terms'?'terms-of-use':'privacy-policy'} · versão {LEGAL_VERSION}</Text><Text className="mt-5 text-sm leading-5 text-warning">Minuta do MVP demonstrativo. Revisão e aprovação jurídica são necessárias antes de operação comercial.</Text>{document.sections.map(section=><View key={section.heading} className="mt-6"><Text className="text-lg font-black text-foreground">{section.heading}</Text><Text className="mt-2 text-sm leading-6 text-muted-foreground">{section.body}</Text></View>)}<Button variant="outline" className="mt-8" onPress={onClose}>Fechar documento</Button></ScrollView>:null}</SafeAreaViewCompat></Modal>;
 }
-
-function CheckRow({checked,label,onPress}:{checked:boolean;label:string;onPress:()=>void}){return <TouchableOpacity accessibilityRole="checkbox" accessibilityState={{checked}} onPress={onPress} style={s.checkRow}><Text style={s.check}>{checked?'☑':'☐'}</Text><Text style={s.body}>{label} · {LEGAL_VERSION}</Text></TouchableOpacity>}
-function Heading({title,sub}:{title:string;sub:string}){return <View style={s.heading}><Text style={s.headingText}>{title}</Text><Text style={s.muted}>{sub}</Text></View>}
-function Card({children,accent=false}:{children:React.ReactNode;accent?:boolean}){return <View style={[s.card,accent&&s.accent]}>{children}</View>}
-function Mini({label,value}:{label:string;value:string}){return <View style={s.mini}><Text style={s.muted}>{label}</Text><Text style={s.miniValue}>{value}</Text></View>}
-function Button({label,onPress,disabled=false}:{label:string;onPress:()=>void;disabled?:boolean}){return <TouchableOpacity accessibilityRole="button" disabled={disabled} style={[s.button,disabled&&s.buttonDisabled]} onPress={onPress}><Text style={s.buttonText}>{label}</Text></TouchableOpacity>}
-const s=StyleSheet.create({safe:{flex:1,backgroundColor:'#07111f'},modalSafe:{flex:1,backgroundColor:'#07111f'},loading:{flex:1,alignItems:'center',justifyContent:'center',padding:18},container:{padding:18,paddingBottom:110},top:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:18},modalTop:{padding:18,flexDirection:'row',justifyContent:'space-between',alignItems:'center'},logo:{fontSize:22,fontWeight:'900',color:'#f6f8fb',letterSpacing:1},badge:{color:'#79f2c0',fontSize:11,fontWeight:'900',letterSpacing:1},avatar:{width:42,height:42,borderRadius:21,backgroundColor:'#17304a',alignItems:'center',justifyContent:'center'},avatarText:{color:'#f6f8fb',fontWeight:'800'},card:{backgroundColor:'#0d1a2b',borderWidth:1,borderColor:'rgba(255,255,255,0.09)',borderRadius:24,padding:20,marginBottom:14},accent:{backgroundColor:'#10283a'},eyebrow:{color:'#79f2c0',fontSize:11,fontWeight:'900',letterSpacing:1.3},hero:{color:'#f6f8fb',fontSize:34,lineHeight:38,fontWeight:'900',letterSpacing:-1.5,marginTop:10,marginBottom:18},heading:{marginTop:8,marginBottom:12},headingText:{color:'#f6f8fb',fontSize:24,fontWeight:'900',letterSpacing:-.7},muted:{color:'#93a4b8',fontSize:13,lineHeight:19},cardTitle:{color:'#f6f8fb',fontSize:19,fontWeight:'800',marginBottom:6},body:{color:'#dce5ef',fontSize:15,lineHeight:22,marginBottom:12},notice:{color:'#fff3cd',fontSize:13,lineHeight:19,marginVertical:16},button:{backgroundColor:'#79f2c0',paddingVertical:13,paddingHorizontal:16,borderRadius:16,alignItems:'center',marginTop:14},buttonDisabled:{opacity:.45},buttonText:{color:'#06111f',fontWeight:'900'},quick:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between'},metrics:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between'},mini:{width:'48%',backgroundColor:'#0d1a2b',borderWidth:1,borderColor:'rgba(255,255,255,0.08)',borderRadius:18,padding:15,marginBottom:12},miniValue:{color:'#f6f8fb',fontWeight:'900',fontSize:18,marginTop:7},emoji:{fontSize:42,marginBottom:10},row:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginVertical:10},price:{color:'#f6f8fb',fontWeight:'900',fontSize:18},cash:{color:'#79f2c0',fontWeight:'800',fontSize:13},big:{color:'#f6f8fb',fontSize:40,fontWeight:'900',marginVertical:8},nav:{position:'absolute',left:12,right:12,bottom:10,backgroundColor:'#0a1726',borderRadius:24,borderWidth:1,borderColor:'rgba(255,255,255,0.09)',padding:7,flexDirection:'row',justifyContent:'space-around'},navItem:{flex:1,alignItems:'center',padding:8,borderRadius:16},navActive:{backgroundColor:'rgba(121,242,192,0.10)'},navIcon:{color:'#f6f8fb',fontSize:18},navLabel:{color:'#93a4b8',fontSize:10,marginTop:2},toast:{backgroundColor:'#e9fff6',borderRadius:16,padding:13,marginBottom:14},gateMessage:{position:'absolute',left:18,right:18,bottom:18,backgroundColor:'#e9fff6',borderRadius:16,padding:13},toastText:{color:'#07111f',fontWeight:'800'},checkRow:{flexDirection:'row',alignItems:'center',marginTop:12},check:{color:'#79f2c0',fontSize:26,marginRight:10}});
+function SectionTitle({eyebrow,title,sub}:{eyebrow:string;title:string;sub:string}){return <View className="mb-4 mt-section"><Text className="text-xs font-black uppercase tracking-widest text-primary">{eyebrow}</Text><Text className="mt-2 text-2xl font-black tracking-tight text-foreground">{title}</Text><Text className="mt-1 text-sm leading-5 text-muted-foreground">{sub}</Text></View>}
+function Metric({label,value}:{label:string;value:string}){return <Card className="mb-3 w-[48%] p-card"><Text className="text-xs text-muted-foreground">{label}</Text><Text className="mt-2 text-base font-black text-foreground">{value}</Text></Card>}

@@ -7,8 +7,11 @@
     "dev": "node server.mjs",
     "start": "node server.mjs",
     "test": "node --test tests/*.test.mjs",
-    "test:coverage": "node --test --experimental-test-coverage tests/*.test.mjs"
+    "test:coverage": "node --test --experimental-test-coverage tests/*.test.mjs",
+    "check:web": "pnpm --filter @life/web typecheck",
+    "build:web": "pnpm --filter @life/web build"
   },
+  "packageManager": "pnpm@11.24.0",
   "engines": {
     "node": ">=20.19.0"
   }
