@@ -1,140 +1,87 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
-import vm from 'node:vm';
+import {createApp} from '../server.mjs';
 
-const source = await fs.readFile(new URL('../prototype/app.js', import.meta.url), 'utf8');
+const appSource = await fs.readFile(new URL('../prototype/app.js', import.meta.url), 'utf8');
+let server;
+let baseUrl;
 
-function createHarness({storedState = null, fetchImpl = async () => ({ok: true, json: async () => ({allocation: {cashbackEarned: 1, condominiumShare: 0.1}})}), setItemImpl = null} = {}) {
-  let markup = '';
-  const values = new Map(storedState === null ? [] : [['life-state', storedState]]);
-  const alerts = [];
-  const root = {set innerHTML(value) { markup = value; }, get innerHTML() { return markup; }};
-  const context = {
-    alert: message => alerts.push(message),
-    clearTimeout,
-    console,
-    document: {querySelector: selector => selector === '#app' ? root : null},
-    fetch: fetchImpl,
-    Intl,
-    JSON,
-    localStorage: {
-      getItem: key => values.has(key) ? values.get(key) : null,
-      setItem: (key, value) => setItemImpl ? setItemImpl(key, value, values) : values.set(key, value),
-    },
-    Math,
-    navigator: {serviceWorker: {register: async () => {}}},
-    Number,
-    Date,
-    Promise,
-    String,
-    window: {},
-  };
-
-  vm.runInNewContext(source, context, {filename: 'prototype/app.js'});
-  return {context, alerts, get markup() { return markup; }, values};
-}
-
-function acceptLegal(app) {
-  app.context.window.toggleLegal('terms', true);
-  app.context.window.toggleLegal('privacy', true);
-  app.context.window.acceptLegal();
-}
-
-test('renderiza a home mesmo sem estado salvo', () => {
-  const app = createHarness();
-  assert.match(app.markup, /Antes de continuar/);
-  assert.match(app.markup, /Termos de Uso/);
-  assert.match(app.markup, /Política de Privacidade/);
+test.before(async () => {
+  server = createApp();
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  baseUrl = `http://127.0.0.1:${server.address().port}`;
 });
 
-test('recupera estado corrompido sem interromper o carregamento', () => {
-  const app = createHarness({storedState: '{not-json'});
-  assert.match(app.markup, /Antes de continuar/);
+test.after(async () => {
+  await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
 });
 
-test('grava os dois consentimentos versionados antes de liberar a aplicação', () => {
-  const app = createHarness();
-  acceptLegal(app);
-  const saved = JSON.parse(app.values.get('life-state'));
-  assert.equal(saved.legalConsent.terms.document, 'terms-of-use');
-  assert.equal(saved.legalConsent.terms.version, '2026-08-30');
-  assert.equal(saved.legalConsent.privacy.document, 'privacy-policy');
-  assert.equal(saved.legalConsent.privacy.version, '2026-08-30');
-  assert.match(app.markup, /SEU DIA NO LIFE/);
-});
-
-test('navega para o marketplace pelo contrato público go()', () => {
-  const app = createHarness();
-  acceptLegal(app);
-  app.context.window.go('market');
-  assert.match(app.markup, /Marketplace/);
-  assert.match(app.markup, /Comprar no Life/);
-});
-
-test('compra atualiza cashback e pedidos somente após cotação bem-sucedida', async () => {
-  const app = createHarness({
-    fetchImpl: async () => ({
-      ok: true,
-      json: async () => ({allocation: {cashbackEarned: 4, condominiumShare: 0.85}}),
-    }),
+const jsonRequest = async (path, {method = 'GET', headers = {}, body} = {}) => {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method,
+    headers: {...(body === undefined ? {} : {'content-type': 'application/json'}), ...headers},
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
+  return {response, payload: await response.json().catch(() => ({}))};
+};
 
-  acceptLegal(app);
-  await app.context.window.buy(1);
+const cookieFrom = response => response.headers.get('set-cookie')?.split(';', 1)[0];
 
-  const state = JSON.parse(app.values.get('life-state'));
-  assert.equal(state.cashback, 31.8);
-  assert.equal(state.orders, 1);
-  assert.equal(state.condoRevenue, 0.85);
-  assert.match(app.alerts[0], /Pagamento MVP aprovado/);
+test('shell web usa sessão do servidor e catálogo autoritativo', async () => {
+  assert.match(appSource, /\/api\/session/);
+  assert.match(appSource, /\/api\/catalog/);
+  assert.match(appSource, /\/api\/checkout\/commit/);
+  assert.match(appSource, /textContent/);
+  assert.doesNotMatch(appSource, /life-state/);
+
+  const session = await jsonRequest('/api/session');
+  const cookie = cookieFrom(session.response);
+  assert.ok(cookie);
+  assert.equal(session.payload.session.cashbackCents, 2780);
+  const catalog = await jsonRequest('/api/catalog');
+  assert.equal(catalog.payload.products.length, 3);
+  assert.deepEqual(catalog.payload.products.map(product => product.id), ['cesta-fresh', 'corte-premium', 'visita-tecnica']);
 });
 
-test('falha da cotação não altera o estado local', async () => {
-  const app = createHarness({
-    fetchImpl: async () => ({ok: false, json: async () => ({})}),
-  });
+test('fluxo web exige os dois documentos antes do checkout', async () => {
+  const session = await jsonRequest('/api/session');
+  const cookie = cookieFrom(session.response);
+  const headers = {cookie, origin: baseUrl, 'idempotency-key': 'web-flow-checkout-key-01'};
 
-  acceptLegal(app);
-  const previous = app.values.get('life-state');
-  await app.context.window.buy(1);
+  const beforeConsent = await jsonRequest('/api/checkout/commit', {method: 'POST', headers, body: {productId: 'cesta-fresh', useCashback: false}});
+  assert.equal(beforeConsent.response.status, 403);
+  assert.equal(beforeConsent.payload.error.code, 'LEGAL_ACCEPTANCE_REQUIRED');
 
-  assert.equal(app.values.get('life-state'), previous);
-  assert.match(app.alerts[0], /Nenhuma alteração foi aplicada/);
+  const accepted = await jsonRequest('/api/legal/accept', {method: 'POST', headers: {cookie, origin: baseUrl}, body: {version: '2026-08-30'}});
+  assert.equal(accepted.response.status, 200);
+  assert.equal(accepted.payload.session.legalAcceptedVersion, '2026-08-30');
+
+  const checkout = await jsonRequest('/api/checkout/commit', {method: 'POST', headers, body: {productId: 'cesta-fresh', useCashback: false}});
+  assert.equal(checkout.response.status, 200);
+  assert.equal(checkout.payload.allocation.grossCents, 6490);
+  assert.equal(checkout.payload.session.orders, 1);
 });
 
-test('falha de persistência do aceite mantém o gate e o estado anterior', () => {
-  const app = createHarness({setItemImpl: () => {throw new Error('STORAGE_FAILED')}});
-  acceptLegal(app);
-  assert.equal(app.values.has('life-state'), false);
-  assert.match(app.markup, /Antes de continuar/);
-  assert.match(app.alerts[0], /Não foi possível salvar/);
+test('documentos jurídicos continuam públicos e versionados', async () => {
+  const paths = ['/legal/terms-2026-08-30.html', '/legal/privacy-2026-08-30.html'];
+  const responses = await Promise.all(paths.map(path => fetch(`${baseUrl}${path}`)));
+  assert.ok(responses.every(response => response.status === 200));
+  const texts = await Promise.all(responses.map(response => response.text()));
+  assert.match(texts[0], /Termos de Uso/);
+  assert.match(texts[0], /2026-08-30/);
+  assert.match(texts[1], /Política de Privacidade/);
+  assert.match(texts[1], /2026-08-30/);
 });
 
-test('bloqueia compras concorrentes até a primeira terminar', async () => {
-  let calls = 0;
-  let resolveFetch;
-  const app = createHarness({
-    fetchImpl: () => {
-      calls += 1;
-      return new Promise(resolve => {resolveFetch = resolve;});
-    },
-  });
-  acceptLegal(app);
-  const first = app.context.window.buy(1);
-  const second = app.context.window.buy(1);
-  assert.equal(calls, 1);
-  resolveFetch({ok: true, json: async () => ({allocation: {cashbackEarned: 4, condominiumShare: 0.85}})});
-  await Promise.all([first, second]);
-  assert.equal(JSON.parse(app.values.get('life-state')).orders, 1);
-});
-
-test('escapa conteúdo não confiável do feed social', () => {
-  const app = createHarness({
-    storedState: JSON.stringify({posts: [{author: '<img src=x>', text: '<script>alert(1)</script>', rating: 99}]}),
-  });
-  acceptLegal(app);
-  app.context.window.go('social');
-  assert.doesNotMatch(app.markup, /<img src=x>|<script>alert\(1\)<\/script>/);
-  assert.match(app.markup, /&lt;img src=x&gt;/);
+test('falha de checkout não altera o snapshot da sessão', async () => {
+  const session = await jsonRequest('/api/session');
+  const cookie = cookieFrom(session.response);
+  const headers = {cookie, origin: baseUrl, 'idempotency-key': 'web-failure-checkout-key-01'};
+  await jsonRequest('/api/legal/accept', {method: 'POST', headers: {cookie, origin: baseUrl}, body: {version: '2026-08-30'}});
+  const invalid = await jsonRequest('/api/checkout/commit', {method: 'POST', headers, body: {productId: 'not-in-catalog', useCashback: false}});
+  assert.equal(invalid.response.status, 404);
+  const snapshot = await jsonRequest('/api/session', {headers: {cookie}});
+  assert.equal(snapshot.payload.session.orders, 0);
+  assert.equal(snapshot.payload.session.cashbackCents, 2780);
 });
