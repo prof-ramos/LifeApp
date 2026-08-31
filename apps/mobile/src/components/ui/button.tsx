@@ -12,7 +12,7 @@ const textClass: Record<Variant,string> = {
   default: 'text-primary-foreground', secondary: 'text-secondary-foreground', outline: 'text-foreground', ghost: 'text-foreground', destructive: 'text-white',
 };
 const sizeClass: Record<Size,string> = {
-  sm: 'min-h-10 px-3', default: 'min-h-12 px-4', lg: 'min-h-12 px-6', icon: 'h-12 w-12 px-0',
+  sm: 'min-h-11 px-3', default: 'min-h-12 px-4', lg: 'min-h-12 px-6', icon: 'h-12 w-12 px-0',
 };
 
 export type ButtonProps = PressableProps & { children: ReactNode; variant?: Variant; size?: Size; className?: string };
