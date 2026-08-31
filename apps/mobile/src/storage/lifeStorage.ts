@@ -19,7 +19,6 @@ const KEYS = {
   legalConsent: 'life.legal-consent',
 } as const;
 
-export type {LocalLifeState};
 export {DEFAULT_STATE};
 
 export async function loadLocalLifeState(): Promise<LocalLifeState> {

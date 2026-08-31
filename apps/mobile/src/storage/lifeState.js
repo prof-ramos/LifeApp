@@ -42,6 +42,11 @@ function parseLegalConsent(raw) {
   };
 }
 
+/**
+ * @param {string|number|null|undefined} cashbackRaw
+ * @param {string|number|null|undefined} ordersRaw
+ * @param {string|Record<string, unknown>|null|undefined} legalConsentRaw
+ */
 export function parseLocalLifeState(cashbackRaw, ordersRaw, legalConsentRaw = null) {
   const cashback = cashbackRaw === null ? DEFAULT_STATE.cashback : Number(cashbackRaw);
   const orders = ordersRaw === null ? DEFAULT_STATE.orders : Number(ordersRaw);
